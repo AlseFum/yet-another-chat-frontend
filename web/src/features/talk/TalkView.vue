@@ -9,7 +9,7 @@ import { PROMPT_STAGES } from '../../../../llm/prompts/talk.js'
 import { runTalkPipeline } from './runtime.js'
 
 const props = defineProps({ talk: { type: Object, required: true }, activeSessionId: { type: String, default: '' }, genId: { type: Function, required: true }, apiKeys: { type: Array, default: () => [] }, runStage: { type: Function, required: true } })
-const emit = defineEmits(['save', 'create-session', 'select-session'])
+const emit = defineEmits(['save', 'create-session', 'select-session', 'rename-session', 'delete-session'])
 const message = ref('')
 const planAction = ref('')
 const planAt = ref('')
@@ -17,6 +17,8 @@ const showPrompts = ref(false)
 const activeView = ref('conversation')
 const running = ref(false)
 const runtimeStatus = ref('')
+const editingSessionName = ref(false)
+const sessionName = ref('')
 const session = computed(() => props.talk.sessions.find(item => item.id === props.activeSessionId) || props.talk.sessions[0])
 if (!props.talk.modelConfig) props.talk.modelConfig = { apiKeyId: '', model: 'deepseek-v4-flash', temperature: '0.7', maxTokens: '2048' }
 if (!props.talk.activity) props.talk.activity = { enabled: true, minReplyIntervalMinutes: 60, maxProactivePerSession: 2 }
@@ -24,6 +26,23 @@ const config = computed(() => props.talk.modelConfig)
 let timer = null
 
 function save() { emit('save', props.talk) }
+function startRenameSession() {
+  if (!session.value) return
+  sessionName.value = session.value.name
+  editingSessionName.value = true
+}
+function saveSessionName() {
+  const name = sessionName.value.trim()
+  if (!session.value || !name) return
+  emit('rename-session', session.value.id, name)
+  editingSessionName.value = false
+}
+function cancelRenameSession() { editingSessionName.value = false }
+function deleteSession() {
+  if (!session.value || !confirm(`删除 Session“${session.value.name}”？此操作无法撤销。`)) return
+  editingSessionName.value = false
+  emit('delete-session', session.value.id)
+}
 function sendMessage() {
   if (!message.value.trim() || !session.value) return
   session.value.conversation.push(createConversationMessage({ id: props.genId(), role: 'user', content: message.value }))
@@ -118,7 +137,7 @@ watch(() => session.value?.id, () => { activeView.value = 'conversation'; addOpe
 <template>
   <main class="talk-view">
     <header class="talk-head">
-      <div class="talk-title-row"><div class="talk-identity"><h1>{{ talk.name }}</h1></div><nav v-if="session" class="session-breadcrumb" aria-label="Session 选择"><span>Session</span><span class="breadcrumb-separator">/</span><select :value="session.id" @change="emit('select-session', $event.target.value)"><option v-for="item in talk.sessions" :key="item.id" :value="item.id">{{ item.name }}</option></select><Button variant="ghost" size="icon" title="新建 Session" @click="emit('create-session')"><Icon name="plus" /></Button></nav></div>
+      <div class="talk-title-row"><div class="talk-identity"><h1>{{ talk.name }}</h1></div><nav v-if="session" class="session-breadcrumb" aria-label="Session 选择"><span>Session</span><span class="breadcrumb-separator">/</span><select v-if="!editingSessionName" :value="session.id" @change="emit('select-session', $event.target.value)"><option v-for="item in talk.sessions" :key="item.id" :value="item.id">{{ item.name }}</option></select><form v-else class="session-name-form" @submit.prevent="saveSessionName"><input v-model="sessionName" aria-label="Session 名称" autofocus @keydown.esc.prevent="cancelRenameSession" /><Button type="submit" variant="ghost" size="icon" title="保存名称"><Icon name="check" /></Button><Button type="button" variant="ghost" size="icon" title="取消编辑" @click="cancelRenameSession"><Icon name="close" /></Button></form><template v-if="!editingSessionName"><Button variant="ghost" size="icon" title="编辑 Session 名称" @click="startRenameSession"><Icon name="edit" /></Button><Button variant="ghost" size="icon" title="删除 Session" @click="deleteSession"><Icon name="trash" /></Button></template><Button variant="ghost" size="icon" title="新建 Session" @click="emit('create-session')"><Icon name="plus" /></Button></nav></div>
       <div v-if="session" class="talk-head-actions">
         <div class="talk-view-actions"><Button variant="ghost" size="icon" title="角色状态" @click="activeView = 'state'"><Icon name="info" /></Button><Button variant="ghost" size="icon" title="计划" @click="activeView = 'plan'"><Icon name="list" /></Button><Button variant="ghost" size="icon" title="运行配置" @click="activeView = 'runtime'"><Icon name="settings" /></Button></div>
       </div>
@@ -160,7 +179,7 @@ watch(() => session.value?.id, () => { activeView.value = 'conversation'; addOpe
 
 <style scoped>
 .talk-view { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 22px clamp(16px, 4vw, 52px) 28px; }
-.talk-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex: 0 0 auto; padding-bottom: 14px; border-bottom: 1px solid var(--ol-bdr); }.talk-title-row, .talk-head-actions, .talk-view-actions, .session-breadcrumb { display: flex; align-items: center; gap: 6px; }.talk-title-row { min-width: 0; gap: 14px; }.talk-identity { min-width: 0; }.eyebrow { margin: 0 0 4px; color: var(--accent2); font-size: 10px; font-weight: 700; letter-spacing: .14em; }.talk-head h1 { margin: 0; font-size: 24px; }.session-breadcrumb { min-width: 0; color: var(--text-faint); font-size: 11px; white-space: nowrap; }.breadcrumb-separator { color: var(--text-faint); }.session-breadcrumb select { min-width: 100px; max-width: 180px; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 12px; outline: none; }
+  .talk-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex: 0 0 auto; padding-bottom: 14px; border-bottom: 1px solid var(--ol-bdr); }.talk-title-row, .talk-head-actions, .talk-view-actions, .session-breadcrumb, .session-name-form { display: flex; align-items: center; gap: 6px; }.talk-title-row { min-width: 0; gap: 14px; }.talk-identity { min-width: 0; }.eyebrow { margin: 0 0 4px; color: var(--accent2); font-size: 10px; font-weight: 700; letter-spacing: .14em; }.talk-head h1 { margin: 0; font-size: 24px; }.session-breadcrumb { min-width: 0; color: var(--text-faint); font-size: 11px; white-space: nowrap; }.breadcrumb-separator { color: var(--text-faint); }.session-breadcrumb select { min-width: 100px; max-width: 180px; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 12px; outline: none; }.session-name-form input { width: min(180px, 35vw); min-width: 0; border: 1px solid var(--ol-bdr); border-radius: 4px; padding: 4px 6px; background: var(--ol-input); color: var(--text); font: inherit; font-size: 12px; }
 .session-context { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; min-height: 30px; color: var(--text-faint); font-size: 11px; }.runtime-status { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }.session-context > :last-child { margin-left: auto; }.conversation-pane { display: flex; flex: 1; flex-direction: column; min-height: 0; margin-top: 10px; border-top: 1px solid var(--ol-bdr); }.conversation-scroll { flex: 1; min-height: 0; overflow: auto; padding: 14px 0; }.conversation-meta { display: flex; justify-content: flex-end; color: var(--text-faint); font-size: 11px; }.messages { display: flex; flex-direction: column; gap: 10px; min-height: 100%; padding: 12px 0; }.empty, .panel-note { color: var(--text-faint); font-size: 12px; }.talk-message { max-width: min(78%, 720px); padding: 8px 10px; border: 1px solid var(--ol-bdr); border-radius: 6px; font-size: 13px; line-height: 1.6; }.talk-message.user { align-self: flex-end; border-color: rgba(244,63,94,.25); background: var(--glass-msg-user); }.talk-message > span { display: block; margin-bottom: 3px; color: var(--text-faint); font-size: 10px; font-weight: 600; }.talk-message p { margin: 0; white-space: pre-wrap; font-family: 'Noto Serif SC', 'Songti SC', 'STSong', ui-serif, Georgia, serif; font-size: 15px; line-height: 1.75; }.message-input { display: flex; align-items: flex-end; gap: 8px; flex: 0 0 auto; padding-top: 12px; border-top: 1px solid var(--ol-bdr); }.message-input textarea, .plan-form input, .runtime-fields input, .runtime-fields select, .clock-jump input, .clock-advanced input { min-width: 0; border: 1px solid var(--ol-bdr); border-radius: 4px; padding: 7px 8px; background: var(--ol-input); color: var(--text); font: inherit; font-size: 12px; }.message-input textarea { flex: 1; resize: vertical; }
 .talk-subview { flex: 1; min-height: 0; overflow: auto; padding: 20px 0 0; }.subview-head { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--ol-bdr); }.subview-head h2 { margin: 0; font-size: 17px; }.subview-section, .runtime-section { padding: 18px 0; border-bottom: 1px solid var(--ol-bdr); }.subview-section h3, .runtime-section h3 { margin: 0 0 3px; font-size: 13px; }.state-text { margin: 14px 0 0; color: var(--text-dim); font-size: 13px; line-height: 1.7; white-space: pre-wrap; }.memory-item, .plan-item { display: grid; gap: 3px; padding: 12px 0; border-top: 1px solid var(--ol-bdr); color: var(--text-dim); font-size: 12px; line-height: 1.6; }.memory-item:first-of-type, .plan-item:first-of-type { margin-top: 12px; }.memory-item strong, .plan-item strong { color: var(--text); }.memory-item span, .plan-item span { color: var(--text-faint); font-size: 11px; }.plan-form { display: flex; gap: 8px; padding: 2px 0 16px; border-bottom: 1px solid var(--ol-bdr); }.plan-form input:first-child { flex: 1; }.plan-form input:nth-child(2) { width: 170px; }
 .runtime-fields { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; }.runtime-fields label, .clock-jump, .clock-advanced label { display: flex; flex-direction: column; gap: 4px; color: var(--text-faint); font-size: 10px; font-weight: 600; }.runtime-fields > label:first-child { min-width: 200px; }.runtime-fields .switch { flex-direction: row; align-items: center; min-height: 32px; }.clock-section { display: grid; grid-template-columns: auto 1fr; gap: 14px 24px; align-items: center; }.clock-section time { color: var(--text); font-size: 15px; font-weight: 600; }.clock-shortcuts { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }.clock-jump, .clock-advanced { grid-column: 1 / -1; }.clock-jump { flex-direction: row; align-items: center; }.clock-advanced { padding-top: 12px; border-top: 1px solid var(--ol-bdr); color: var(--text-dim); font-size: 12px; }.clock-advanced summary { cursor: pointer; }.clock-advanced > div { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }.runtime-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.prompt-stages { margin-top: 10px; }.prompt-stages article { display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; padding: 12px 0; border-top: 1px solid var(--ol-bdr); }.prompt-stages strong { color: var(--text); font-size: 12px; }.prompt-stages p { margin: 3px 0 0; color: var(--text-dim); font-size: 12px; line-height: 1.6; }.prompt-stages code { color: var(--accent2); font: 10px ui-monospace, monospace; }

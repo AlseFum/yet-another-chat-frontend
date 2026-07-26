@@ -134,6 +134,22 @@ export function createWorkspaceState({ editor } = {}) {
     state.activeTalkSessionId = session.id
     await state.saveTalks()
   }
+  state.renameTalkSession = async (id, name) => {
+    const session = state.activeTalk?.sessions.find(item => item.id === id)
+    const nextName = String(name || '').trim()
+    if (!session || !nextName) return false
+    session.name = nextName
+    await state.saveTalks()
+    return true
+  }
+  state.deleteTalkSession = async (id) => {
+    const talk = state.activeTalk
+    const index = talk?.sessions.findIndex(session => session.id === id) ?? -1
+    if (index < 0) return
+    talk.sessions.splice(index, 1)
+    if (state.activeTalkSessionId === id) state.activeTalkSessionId = talk.sessions[index]?.id || talk.sessions[index - 1]?.id || null
+    await state.saveTalks()
+  }
   state.deleteTalk = async (id) => {
     state.talks = removeByKey(state.talks, 'id', id)
     if (state.activeTalkId === id) {

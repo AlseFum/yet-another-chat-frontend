@@ -1,4 +1,4 @@
-# DS Chat
+# yet-another-chat-frontend
 
 一个本地优先的 LLM 工作台。DS Chat 将多轮对话、提示词与工具编辑、可视化工作流、分阶段写作（Talk）和 LLM 任务记录放在同一个 Vue 应用中，并通过本地 JSON 文件保存工作区数据。
 
@@ -30,7 +30,7 @@
 
 ```sh
 git clone <your-repository-url>
-cd myagent
+cd yet-another-chat-frontend
 npm install
 npm run build
 npm run start:once
@@ -56,7 +56,7 @@ npm start
 npm run dev
 ```
 
-访问 Vite 输出的本地地址（通常是 [http://localhost:5173](http://localhost:5173)）。Vite 已将 `/api` 和 `/ws` 代理至 `http://localhost:1145`。
+访问 Vite 输出的本地地址。Vite 已将 `/api` 和 `/ws` 代理至 `http://localhost:1145`。
 
 ## 常用命令
 
@@ -86,4 +86,4 @@ data/      本地工作区数据（运行时生成，不提交）
 
 ## 许可证
 
-当前仓库尚未声明许可证。在公开发布前，请添加适合项目分发方式的 `LICENSE` 文件。
+GPL v3

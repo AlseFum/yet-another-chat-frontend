@@ -145,6 +145,8 @@ onUnmounted(() => {
       @save="workspace.saveTalks"
       @create-session="workspace.createTalkSession"
       @select-session="workspace.selectTalkSession"
+      @rename-session="workspace.renameTalkSession"
+      @delete-session="workspace.deleteTalkSession"
     />
     <LLMJobsView
       v-else-if="ui.currentView === 'llm-jobs'"
