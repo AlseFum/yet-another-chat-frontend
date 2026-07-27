@@ -1,0 +1,13 @@
+{
+  "name": "llm-core",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test:llm": "node test.js"
+  },
+  "dependencies": {
+    "nanoid": "^5.1.5",
+    "rxjs": "^7.8.2"
+  }
+}
