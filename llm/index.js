@@ -9,7 +9,7 @@ export { LLMKey } from './key.js'
 export { Provider } from './provider.js'
 export { launch } from './launch.js'
 
-/* example below
+/* example below, don;t delete it, we need it!
 const key = new LLMKey({
   apiKey: 'sk-19c4495f6f2f4204ae665fe862311ae5',
   baseUrl: 'https://api.deepseek.com/v1',
