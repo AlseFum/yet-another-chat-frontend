@@ -41,10 +41,23 @@ application/  纯 Application 状态，当前只保存关注的 Job ID
 frontend/     KeyRef、JobManager、Client、HTTP/SSE/WS transport
 backend/      按 workspace 持久化 Key/State/Job，以及 JobManager、Service、HTTP/SSE/WS transport
 llm/          Provider 无关的单次 LLM Job 核心
+web/          独立的 Vue 工作台 UI，目前由内存 fixture 驱动
 tui.js        终端前端测试入口
 ```
 
 `KeyRef.temporary(key)` 表示仅前端内存中的临时 Key；`KeyRef.server(keyId)` 只传递后端 Key ID，不含 API Key。
+
+## Web UI
+
+第一阶段 Web UI 不连接后端，也不复用 TUI 的 Client 或交互模型。它用于验证工作台布局、各 Application 页面、移动端体验以及可替换主题契约。
+
+```sh
+npm run web:dev
+npm run web:check-theme
+npm run web:build
+```
+
+完整边界和后续阶段见 [`docs/web-replication-roadmap.md`](docs/web-replication-roadmap.md)。
 
 ## TUI
 

@@ -5,12 +5,27 @@
   "type": "module",
   "scripts": {
     "backend": "node backend/index.js",
-    "tui": "node tui.js"
+    "tui": "node tui.js",
+    "web:dev": "vite --config web/vite.config.js --host 0.0.0.0",
+    "web:build": "vite build --config web/vite.config.js",
+    "web:check-theme": "node web/scripts/check-theme-contract.js"
   },
   "dependencies": {
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.38.1",
+    "codemirror": "^6.0.2",
+    "dompurify": "^3.2.6",
     "express": "^5.2.1",
+    "marked": "^15.0.12",
     "nanoid": "^5.1.5",
     "rxjs": "^7.8.2",
+    "vue": "^3.5.13",
     "ws": "^8.21.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.1.0"
   }
 }
