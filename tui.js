@@ -1,10 +1,10 @@
 import { createInterface } from 'node:readline/promises'
 import { stdin, stdout } from 'node:process'
 import { Application } from './application/application.js'
-import { FrontendClient } from './frontend/client.js'
-import { FrontendJobManager } from './frontend/job-manager.js'
-import { KeyRef } from './frontend/key-ref.js'
-import { HttpSseWsTransport } from './frontend/transport.js'
+import { FrontendClient } from './tui/client/client.js'
+import { FrontendJobManager } from './tui/client/job-manager.js'
+import { KeyRef } from './tui/client/key-ref.js'
+import { HttpSseWsTransport } from './tui/client/transport.js'
 import { JobRequest } from './llm/index.js'
 
 const input = createInterface({

@@ -3,11 +3,10 @@ import { nanoid } from 'nanoid'
 
 export class LLMKey {
   constructor({ id = nanoid(), apiKey, provider = 'openai-compatible', baseUrl } = {}) {
-    if (!apiKey) throw new TypeError('LLMKey 需要 apiKey')
-      
     const adapter = Provider.get(provider)
+    if (adapter.requiresApiKey && !apiKey) throw new TypeError('LLMKey 需要 apiKey')
     this.id = id
-    this.apiKey = apiKey
+    this.apiKey = apiKey || ''
     this.provider = adapter.id
     this.baseUrl = baseUrl || adapter.defaultBaseUrl
   }

@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid'
-import { LLMKey } from '../llm/index.js'
+import { LLMKey } from '../../llm/index.js'
 
 export class KeyRef {
   constructor({ id = nanoid(), type, key = null, keyId = null } = {}) {

@@ -5,6 +5,15 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
   plugins: [vue()],
+  server: {
+    proxy: {
+      '^/[^/]+/(event|ws|job|key|state|store)(/.*)?$': {
+        target: 'http://localhost:1146',
+        changeOrigin: true,
+        ws: true,
+      },
+    },
+  },
   build: {
     outDir: fileURLToPath(new URL('./dist', import.meta.url)),
     emptyOutDir: true,

@@ -269,6 +269,7 @@ section::before { content: ""; position: absolute; z-index: 1; top: var(--decor-
 .credential-form { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin: var(--space-5) 0; }
 .credential-form label, .credential-form .form-field { display: grid; min-width: 0; gap: 6px; color: var(--color-text-muted); font-size: 10px; }
 .credential-form label.wide, .credential-form .form-field.wide { grid-column: 1 / -1; }
+.credential-form .ui-switch.wide { grid-column: 1 / -1; }
 .job-overview { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .job-overview .running strong { color: var(--color-info); }
 .job-overview .completed strong { color: var(--color-positive); }

@@ -14,6 +14,43 @@ function assertPublicStoreName(name) {
   throw error
 }
 
+function summarizeJob(job) {
+  if (!job) return job
+  return {
+    id: job.id,
+    keyId: job.keyId,
+    status: job.status,
+    createdAt: job.createdAt,
+    startedAt: job.startedAt,
+    completedAt: job.completedAt,
+    responseText: job.responseText,
+    reasoning: job.reasoning,
+    error: job.error,
+    cancelReason: job.cancelReason,
+  }
+}
+
+function summarizeState(state, keys = []) {
+  const jobs = Array.isArray(state?.jobs) ? state.jobs.map(job => typeof job === 'object' ? job.id : job).filter(Boolean) : []
+  const jobMeta = Object.fromEntries(Object.entries(state?.jobMeta || {}).map(([id, meta]) => [id, {
+    source: meta?.source,
+    type: meta?.type,
+    name: meta?.name,
+  }]))
+  const ui = state?.ui || {}
+  const summary = {
+    jobs,
+    jobMeta,
+    ui: {
+      selectedKeyId: ui.selectedKeyId || null,
+    },
+  }
+  for (const key of keys) {
+    if (Object.hasOwn(state || {}, key)) summary[key] = state[key]
+  }
+  return summary
+}
+
 export class BackendService {
   constructor({ jobs, store } = {}) {
     if (!jobs) throw new TypeError('BackendService 需要 jobs')
@@ -28,9 +65,10 @@ export class BackendService {
     return job.toJSON()
   }
 
-  async getJobs(workspace, ids) {
+  async getJobs(workspace, ids, { detail = false } = {}) {
     const stored = readRecord(this.store, workspace, 'jobs')
     const jobs = ids.map(id => this.jobs.get(workspace, id)?.toJSON() || stored[id]).filter(Boolean)
+      .map(job => detail ? job : summarizeJob(job))
     return { jobs, missingIds: ids.filter(id => !jobs.some(job => job.id === id)) }
   }
 
@@ -51,8 +89,15 @@ export class BackendService {
     return this.jobs.events.subscribe(listener)
   }
 
-  getState(workspace) { return this.store.read(workspace, 'state') ?? null }
+  getState(workspace, { summary = false, keys = [] } = {}) {
+    const state = this.store.read(workspace, 'state') ?? null
+    return summary ? summarizeState(state, keys) : state
+  }
   setState(workspace, state) { return this.store.write(workspace, 'state', state) }
+  patchState(workspace, state) {
+    const current = this.store.read(workspace, 'state') || {}
+    return this.store.write(workspace, 'state', { ...current, ...state })
+  }
 
   listKeys(workspace) {
     return Object.values(readRecord(this.store, workspace, 'keys')).map(({ apiKey, ...key }) => key)

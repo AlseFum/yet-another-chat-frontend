@@ -9,7 +9,11 @@ function jobIds(query) {
   return Array.isArray(query) ? query : [query]
 }
 
-export function createBackendTransport(service) {
+function stateKeys(query) {
+  return jobIds(query).filter(key => /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(key))
+}
+
+export function createBackendTransport(service, { staticDir = null } = {}) {
   if (!service) throw new TypeError('createBackendTransport 需要 BackendService')
 
   const app = express()
@@ -47,7 +51,7 @@ export function createBackendTransport(service) {
     response.status(202).json(await service.launchJob(request.params.workspace, request.body))
   })
   app.get('/:workspace/job', async (request, response) => {
-    response.json(await service.getJobs(request.params.workspace, jobIds(request.query.id)))
+    response.json(await service.getJobs(request.params.workspace, jobIds(request.query.id), { detail: request.query.detail === '1' || request.query.detail === 'true' }))
   })
   app.post('/:workspace/job/:jobId/abort', (request, response) => {
     const jobId = request.params.jobId
@@ -58,8 +62,12 @@ export function createBackendTransport(service) {
     response.json({ jobId: request.params.jobId, removed: true })
   })
 
-  app.get('/:workspace/state', (request, response) => response.json(service.getState(request.params.workspace)))
+  app.get('/:workspace/state', (request, response) => response.json(service.getState(request.params.workspace, {
+    summary: request.query.summary === '1' || request.query.summary === 'true',
+    keys: stateKeys(request.query.key),
+  })))
   app.put('/:workspace/state', (request, response) => response.json(service.setState(request.params.workspace, request.body)))
+  app.patch('/:workspace/state', (request, response) => response.json(service.patchState(request.params.workspace, request.body)))
 
   app.get('/:workspace/key', (request, response) => response.json(service.listKeys(request.params.workspace)))
   app.put('/:workspace/key', (request, response) => {
@@ -81,6 +89,17 @@ export function createBackendTransport(service) {
   app.put('/:workspace/store/:name', (request, response) => response.json(service.writeStore(request.params.workspace, request.params.name, request.body)))
   app.patch('/:workspace/store/:name', (request, response) => response.json(service.patchStore(request.params.workspace, request.params.name, request.body)))
   app.delete('/:workspace/store/:name', (request, response) => response.json({ removed: service.removeStore(request.params.workspace, request.params.name) }))
+
+  if (staticDir) {
+    app.use(express.static(staticDir, { index: 'index.html' }))
+    app.use((request, response, next) => {
+      const acceptsHtml = request.method === 'GET' || request.method === 'HEAD'
+        ? request.headers.accept?.includes('text/html')
+        : false
+      if (!acceptsHtml) return next()
+      response.sendFile('index.html', { root: staticDir }, error => error && next(error))
+    })
+  }
 
   app.use((_request, response) => response.status(404).json({ error: '路径不存在' }))
   app.use((error, _request, response, _next) => {

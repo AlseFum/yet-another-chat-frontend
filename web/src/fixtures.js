@@ -42,7 +42,7 @@ export function createWorkspaceFixture() {
     },
     keys: [
       { id: 'key-main', name: 'Primary Gateway', provider: 'openai-compatible', endpoint: 'https://api.example.com/v1', isDefault: true },
-      { id: 'key-lab', name: 'Lab', provider: 'anthropic', endpoint: 'https://gateway.example.net', isDefault: false },
+      { id: 'key-lab', name: 'Lab', provider: 'anthropic-messages', endpoint: 'https://gateway.example.net', isDefault: false },
     ],
     jobs: [
       { id: 'job-a8f2', source: 'chat:产品推演', status: 'completed', location: '服务端托管', model: 'deepseek-chat', createdAt: '2026-07-28 21:14', output: '建议先完成工作台外壳与主题契约。' },

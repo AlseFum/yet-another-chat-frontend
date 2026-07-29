@@ -12,6 +12,7 @@ const workspace = process.env.WORKSPACE || 'default'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const store = new JsonStore(resolve(root, process.env.DATA_DIR || 'data'))
+const webDist = resolve(root, 'web', 'dist')
 const jobs = new BackendJobManager({
   getKey: (workspace, id) => readRecord(store, workspace, 'keys')[id] || null,
   saveJob: async (workspace, snapshot) => {
@@ -35,9 +36,9 @@ const service = new BackendService({
   jobs,
   store,
 })
-const { server } = createBackendTransport(service)
+const { server } = createBackendTransport(service, { staticDir: webDist })
 server.once('error', error => {
-  if (error.code === 'EADDRINUSE') console.error(`端口 ${port} 已被占用，请先停止旧后端进程。`)
+  if (error.code === 'EADDRINUSE') console.error(`端口 ${port} 已被占用，请先停止旧后端进程!`)
   else console.error(error)
   process.exitCode = 1
 })

@@ -9,22 +9,27 @@ const adapters = {
   'openai-compatible': {
     // OpenAI-compatible gateways do not consistently implement json_schema.
     // JobRequest validation/retry remains the portable strict-schema guarantee.
-    id: 'openai-compatible', label: 'OpenAI Compatible', path: '/chat/completions', defaultBaseUrl: 'https://api.openai.com/v1', defaultModels: ['deepseek-v4-flash', 'deepseek-chat'], streamFormat: 'openai',
+    id: 'openai-compatible', label: 'OpenAI Compatible', path: '/chat/completions', defaultBaseUrl: 'https://api.openai.com/v1', defaultModels: ['deepseek-v4-flash', 'deepseek-chat'], requiresApiKey: true, streamFormat: 'openai',
+    prepare(key, job) { return prepare(this, key, job) },
+    authorize(prepared, secret) { return authorize(prepared, { Authorization: `Bearer ${secret.apiKey}` }) },
+  },
+  deepseek: {
+    id: 'deepseek', label: 'DeepSeek', path: '/chat/completions', defaultBaseUrl: 'https://api.deepseek.com/v1', defaultModels: ['deepseek-chat', 'deepseek-reasoner'], requiresApiKey: true, streamFormat: 'openai',
     prepare(key, job) { return prepare(this, key, job) },
     authorize(prepared, secret) { return authorize(prepared, { Authorization: `Bearer ${secret.apiKey}` }) },
   },
   'anthropic-messages': {
-    id: 'anthropic-messages', label: 'Anthropic Messages', path: '/v1/messages', defaultBaseUrl: 'https://api.anthropic.com', defaultModels: ['claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022'], streamFormat: 'anthropic',
+    id: 'anthropic-messages', label: 'Anthropic Messages', path: '/v1/messages', defaultBaseUrl: 'https://api.anthropic.com', defaultModels: ['claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022'], requiresApiKey: true, streamFormat: 'anthropic',
     prepare(key, job) { return prepare(this, key, job) },
     authorize(prepared, secret) { return authorize(prepared, { 'x-api-key': secret.apiKey, 'anthropic-version': '2023-06-01' }) },
   },
   'gemini-generate-content': {
-    id: 'gemini-generate-content', label: 'Gemini Generate Content', streamFormat: 'gemini', path: '/v1beta/models', defaultBaseUrl: 'https://generativelanguage.googleapis.com', defaultModels: ['gemini-2.0-flash', 'gemini-1.5-pro'],
+    id: 'gemini-generate-content', label: 'Gemini Generate Content', streamFormat: 'gemini', path: '/v1beta/models', defaultBaseUrl: 'https://generativelanguage.googleapis.com', defaultModels: ['gemini-2.0-flash', 'gemini-1.5-pro'], requiresApiKey: true,
     prepare(key, job) { return prepare(this, key, job) },
     authorize(prepared, secret) { return { ...prepared, init: { ...prepared.init }, url: `${prepared.url}${prepared.url.includes('?') ? '&' : '?'}key=${encodeURIComponent(secret.apiKey)}` } },
   },
   ollama: {
-    id: 'ollama', label: 'Ollama', path: '/api/chat', defaultBaseUrl: 'http://localhost:11434', defaultModels: [], streamFormat: 'ollama',
+    id: 'ollama', label: 'Ollama', path: '/api/chat', defaultBaseUrl: 'http://localhost:11434', defaultModels: [], requiresApiKey: false, streamFormat: 'ollama',
     prepare(key, job) { return prepare(this, key, job) },
     authorize(prepared) { return prepared },
   },
@@ -97,7 +102,13 @@ function responseContent(format, response) {
 // --- Public adapter registry ---
 
 export const Provider = Object.freeze({
-  list: Object.freeze(Object.values(adapters).map(({ id, label }) => ({ id, label }))),
+  list: Object.freeze(Object.values(adapters).map(({ id, label, defaultBaseUrl, defaultModels, requiresApiKey }) => Object.freeze({
+    id,
+    label,
+    defaultBaseUrl,
+    defaultModels: Object.freeze([...defaultModels]),
+    requiresApiKey,
+  }))),
   get: id => adapters[id] || adapters['openai-compatible'],
   streamDelta,
   responseContent,

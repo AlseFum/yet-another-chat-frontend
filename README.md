@@ -38,7 +38,7 @@ subscription.unsubscribe()
 
 ```text
 application/  纯 Application 状态，当前只保存关注的 Job ID
-frontend/     KeyRef、JobManager、Client、HTTP/SSE/WS transport
+tui/client/   TUI 专用的 KeyRef、JobManager、Client、HTTP/SSE/WS transport
 backend/      按 workspace 持久化 Key/State/Job，以及 JobManager、Service、HTTP/SSE/WS transport
 llm/          Provider 无关的单次 LLM Job 核心
 web/          独立的 Vue 工作台 UI，目前由内存 fixture 驱动
@@ -58,6 +58,28 @@ npm run web:build
 ```
 
 完整边界和后续阶段见 [`docs/web-replication-roadmap.md`](docs/web-replication-roadmap.md)。
+
+执行 `npm run web:build` 后，后端会自动托管 `web/dist`，可以直接访问：
+
+生产启动使用：
+
+```sh
+npm run start
+```
+
+该命令会先构建 Web，再持续监听前端和后端：修改 `web/` 后 Vite 会重新构建 `web/dist`，但不会重启后端；修改 `backend/`、`llm/` 或 `util/` 后，服务端才会自动重启。按 `Ctrl+C` 会同时停止两个进程。
+
+```text
+http://localhost:1146/default
+```
+
+开发时仍可使用 Vite：
+
+```text
+http://localhost:5173/default
+```
+
+Web Chat 的 Job 派发分为两种：服务端 KeyRef 将 `keyId` 和 `JobRequest` 发给后端；临时 KeyRef 则由浏览器直接调用 Provider，明文 Key 只存在当前页面内存，不进入 State、后端 Key 或 Job 快照。
 
 ## TUI
 

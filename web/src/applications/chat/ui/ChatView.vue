@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
 import AppIcon from '../../../components/AppIcon.js'
@@ -11,8 +11,27 @@ const emit = defineEmits(['send'])
 const input = ref('')
 const openReasoning = ref(new Set())
 const historyMode = ref(false)
+const scrollRef = ref(null)
 
 const messages = computed(() => props.conversation?.messages || [])
+
+function isAtBottom() {
+  const el = scrollRef.value
+  if (!el) return true
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 60
+}
+
+function scrollToBottom() {
+  nextTick(() => {
+    if (scrollRef.value) {
+      scrollRef.value.scrollTop = scrollRef.value.scrollHeight
+    }
+  })
+}
+
+watch(messages, () => {
+  if (isAtBottom()) scrollToBottom()
+}, { deep: true })
 
 function toggleReasoning(id) {
   const next = new Set(openReasoning.value)
@@ -34,7 +53,7 @@ function markdown(content) {
 
 <template>
   <section class="chat-view view">
-    <div class="chat-scroll">
+    <div ref="scrollRef" class="chat-scroll">
       <div v-if="!messages.length" class="empty-state">这个对话还没有消息</div>
       <article v-for="message in messages" :key="message.id" class="chat-message" :class="message.role">
         <template v-if="message.role === 'tool'">

@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid'
 import { Subject } from 'rxjs'
-import { launch } from '../llm/index.js'
+import { launch } from '../../llm/index.js'
 
 class RemoteJob {
   constructor(snapshot) {

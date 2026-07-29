@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "backend": "node backend/index.js",
+    "start": "node scripts/start.js",
     "tui": "node tui.js",
     "web:dev": "vite --config web/vite.config.js --host 0.0.0.0",
     "web:build": "vite build --config web/vite.config.js",
