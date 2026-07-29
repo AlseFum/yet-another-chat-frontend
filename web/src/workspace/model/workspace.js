@@ -25,7 +25,6 @@ export class Workspace {
     this.jobSubscription = this.jobsManager.events.subscribe(entry => {
       this.jobs = this.jobsManager.snapshots()
       if (entry.event?.type === 'transport.error') this.error = entry.event.error
-      this.revive()
       this.events.next({ type: 'job', ...entry })
     })
   }
@@ -137,6 +136,7 @@ export class Workspace {
   }
 
   close() {
+    for (const application of this.applications.values()) application.close?.()
     this.jobSubscription.unsubscribe()
     this.events.complete()
     this.jobsManager.close()

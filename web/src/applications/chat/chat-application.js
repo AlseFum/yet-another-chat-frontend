@@ -7,6 +7,7 @@ export class ChatApplication {
     this.workspace = null
     this.conversations = []
     this.ui = { activeConversationId: null }
+    this.jobSubscriptions = new Map()
   }
 
   revive(workspace) {
@@ -14,6 +15,53 @@ export class ChatApplication {
     const state = workspace.state.get(this.stateKey, {})
     this.conversations = Array.isArray(state.conversations) ? state.conversations : []
     this.ui = { activeConversationId: null, ...state.ui }
+    this.rebindJobs()
+  }
+
+  rebindJobs() {
+    const activeJobs = new Set()
+    for (const conversation of this.conversations) {
+      for (const message of conversation.messages || []) {
+        if (!message.jobId || !message.streaming) continue
+        const job = this.workspace.jobsManager.get(message.jobId)
+        if (!job) continue
+        activeJobs.add(message.jobId)
+        this.applyJobSnapshot(message, job)
+        if (!this.jobSubscriptions.has(message.jobId)) {
+          this.jobSubscriptions.set(message.jobId, job.onEvent(event => this.applyJobEvent(message, event)))
+        }
+      }
+    }
+    for (const [jobId, subscription] of this.jobSubscriptions) {
+      if (!activeJobs.has(jobId)) {
+        subscription.unsubscribe()
+        this.jobSubscriptions.delete(jobId)
+      }
+    }
+  }
+
+  applyJobSnapshot(message, job) {
+    message.content = job.responseText || message.content || ''
+    message.reasoning = job.reasoning || message.reasoning || ''
+    if (['completed', 'failed', 'cancelled', 'missing'].includes(job.status)) {
+      message.streaming = false
+      if (job.status !== 'completed' && !message.content) message.content = job.status === 'cancelled' ? 'Job 已取消。' : 'Job 执行失败。'
+    }
+  }
+
+  applyJobEvent(message, event) {
+    if (event.type === 'delta') {
+      message.content += event.content || ''
+      message.reasoning += event.reasoning || ''
+    }
+    if (event.type === 'result' && event.rawText && !message.content) message.content = event.rawText
+    if (['completed', 'failed', 'cancelled'].includes(event.state)) {
+      message.streaming = false
+      if (event.state !== 'completed' && !message.content) message.content = event.state === 'cancelled' ? 'Job 已取消。' : 'Job 执行失败。'
+      void this.save()
+      this.jobSubscriptions.get(message.jobId)?.unsubscribe()
+      this.jobSubscriptions.delete(message.jobId)
+    }
   }
 
   init() {
@@ -78,19 +126,11 @@ export class ChatApplication {
         keyRef,
         metadata: { source: `chat:${current.name}`, conversationId: current.id },
         onEvent: event => {
-          if (event.type === 'delta') {
-            assistant.content += event.content || ''
-            assistant.reasoning += event.reasoning || ''
-          }
-          if (event.type === 'result' && event.rawText && !assistant.content) assistant.content = event.rawText
-          if (['completed', 'failed', 'cancelled'].includes(event.state)) {
-            assistant.streaming = false
-            if (event.state !== 'completed' && !assistant.content) assistant.content = event.state === 'cancelled' ? 'Job 已取消。' : 'Job 执行失败。'
-            void this.save()
-          }
+          this.applyJobEvent(assistant, event)
         },
       })
       assistant.jobId = job.id
+      await this.save()
       return job
     } catch (error) {
       assistant.streaming = false
@@ -98,5 +138,10 @@ export class ChatApplication {
       await this.save()
       throw error
     }
+  }
+
+  close() {
+    for (const subscription of this.jobSubscriptions.values()) subscription.unsubscribe()
+    this.jobSubscriptions.clear()
   }
 }
