@@ -33,17 +33,23 @@ watch(messages, () => {
   if (isAtBottom()) scrollToBottom()
 }, { deep: true })
 
+watch(() => props.conversation?.id, scrollToBottom, { immediate: true })
+
 function toggleReasoning(id) {
+  const followOutput = isAtBottom()
   const next = new Set(openReasoning.value)
   next.has(id) ? next.delete(id) : next.add(id)
   openReasoning.value = next
+  if (followOutput) scrollToBottom()
 }
 
 function send() {
   const content = input.value.trim()
   if (!content || historyMode.value) return
+  const followOutput = isAtBottom()
   emit('send', content)
   input.value = ''
+  if (followOutput) scrollToBottom()
 }
 
 function markdown(content) {

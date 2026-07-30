@@ -20,6 +20,7 @@ const sections = [
       <span>运行与连接</span>
       <button :class="{ active: view === 'keys' }" @click="emit('navigate', 'keys')"><AppIcon name="key" />API Key</button>
       <button :class="{ active: view === 'jobs' }" @click="emit('navigate', 'jobs')"><AppIcon name="bolt" />LLM 任务</button>
+      <button :class="{ active: view === 'custom-settings' }" @click="emit('navigate', 'custom-settings')"><AppIcon name="settings" />应用设置</button>
     </nav>
   </aside>
 </template>

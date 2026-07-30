@@ -1,15 +1,25 @@
 import { Subject } from 'rxjs'
-import { ApiError } from './api-error.js'
+
+export class ApiError extends Error {
+  constructor(message, { status = 0, body = null } = {}) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.body = body
+  }
+}
+
+// -----------------------------------------------------------------------------
+// 响应处理
+// -----------------------------------------------------------------------------
 
 function normalizeBaseUrl(value) {
   return String(value || '').replace(/\/$/, '')
 }
 
-async function readBody(response) {
-  const contentType = response.headers.get('content-type') || ''
-  if (contentType.includes('application/json')) return response.json().catch(() => null)
-  return response.text().catch(() => '')
-}
+const readBody = response => (response.headers.get('content-type') || '').includes('application/json')
+  ? response.json().catch(() => null)
+  : response.text().catch(() => '')
 
 export class BrowserWorkspaceTransport {
   constructor({ workspace, baseUrl = import.meta.env.VITE_BACKEND_URL || '' } = {}) {
@@ -22,6 +32,10 @@ export class BrowserWorkspaceTransport {
     this.eventReady = null
     this.socket = null
   }
+
+  // ---------------------------------------------------------------------------
+  // HTTP 请求
+  // ---------------------------------------------------------------------------
 
   url(path = '') { return `${this.workspaceUrl}${path}` }
 
@@ -40,6 +54,10 @@ export class BrowserWorkspaceTransport {
     if (!response.ok) throw new ApiError(value?.error || `请求失败: ${response.status}`, { status: response.status, body: value })
     return value
   }
+
+  // ---------------------------------------------------------------------------
+  // 实时事件连接
+  // ---------------------------------------------------------------------------
 
   async connect() {
     await this.connectEvents()
@@ -71,6 +89,10 @@ export class BrowserWorkspaceTransport {
     this.socket = socket
   }
 
+  // ---------------------------------------------------------------------------
+  // Workspace API
+  // ---------------------------------------------------------------------------
+
   loadState({ summary = false, keys = [] } = {}) {
     const query = new URLSearchParams()
     if (summary) query.set('summary', '1')
@@ -80,6 +102,10 @@ export class BrowserWorkspaceTransport {
   }
   saveState(state) { return this.request('/state', { method: 'PUT', body: state }) }
   patchState(state) { return this.request('/state', { method: 'PATCH', body: state }) }
+
+  loadCustomSettings() { return this.request('/custom-settings') }
+  saveCustomSettings(settings) { return this.request('/custom-settings', { method: 'PUT', body: settings }) }
+  patchCustomSettings(settings) { return this.request('/custom-settings', { method: 'PATCH', body: settings }) }
 
   listKeys() { return this.request('/key') }
   saveKey(key) { return this.request('/key', { method: 'PUT', body: key }) }
@@ -101,6 +127,10 @@ export class BrowserWorkspaceTransport {
     }
     return this.request(`/job/${encodeURIComponent(jobId)}/abort`, { method: 'POST' })
   }
+
+  // ---------------------------------------------------------------------------
+  // 通用 Store API 与生命周期
+  // ---------------------------------------------------------------------------
 
   readStore(name) { return this.request(`/store/${encodeURIComponent(name)}`) }
   writeStore(name, value) { return this.request(`/store/${encodeURIComponent(name)}`, { method: 'PUT', body: value }) }

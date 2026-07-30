@@ -99,6 +99,71 @@ Workspace 收到 Job 事件时不会重新调用 Application 的 `revive()`，Ap
 临时 Key 的 Job 只存在于当前浏览器进程，刷新后无法恢复执行；服务端 Key 的 Job 才能通过持久化的
 `jobId` 和 Job 快照恢复。刷新期间错过的 delta 不要求逐条重放，但恢复时必须显示服务端当前快照，连接建立后继续接收新的事件。
 
+## CustomSettings 与 JobRequest
+
+每个 Application 可以通过静态 `schema()` 声明自己的 Workspace 级设置。Schema 不是 JSON Schema，而是
+面向设置界面的轻量字段描述对象。Application 不把当前设置放进自己的业务 State；Workspace 通过独立的
+`custom-settings` 后端资源统一加载、保存和编辑。
+
+推荐结构：
+
+```
+static schema() {
+  return {
+    useInjectedPrompt: { type: 'boolean', label: '使用注入 Prompt', default: false },
+    injectedPrompt: { type: 'textarea', label: '注入 Prompt', default: '' },
+  }
+}
+```
+
+Chat 的 Workspace 级设置只用于 Prompt 注入：`useInjectedPrompt` 控制是否启用注入，`injectedPrompt` 保存要注入的
+多段文字。启用且内容非空时，`createChatJobRequest()` 会将它作为首条 `system` 消息放在对话消息之前；
+关闭或内容为空时，不添加额外消息。模型、temperature、maxTokens、thinking、stream 等请求参数属于
+对话或单次 Job 的配置，不应放入 customSettings。
+
+第一版支持五种 field：`number`、`text`、`select`、`textarea`、`boolean`。字段名就是 object key。所有
+字段支持 `type`、`label`、`description`、`default`；`number` 额外支持 `min`、`max`、`step`，
+`select` 支持 `options`。`text` 由通用编辑器限制为单行、最多 80 个字符。
+
+Workspace 存储结构与 `state`、`jobs`、`keys` 独立，实际设置按 Application ID 保存：
+
+```json
+{
+  "chat": {
+    "model": "deepseek-chat",
+    "temperature": 0.7,
+    "thinking": true
+  }
+}
+```
+
+Workspace 启动时加载独立的 custom-settings 资源，根据每个 Application 的 `schema()` 补齐默认值并校验。
+设置页面遍历 Application 的 Schema，自动渲染通用控件，并通过 Workspace 的更新接口保存修改。新增
+Application 后，只要提供 `schema()`，就可以自动出现在设置页面。
+
+用于创建 `JobRequest` 的函数必须从 Application Model 中单独提取到专用文件。Application 将 Workspace
+已加载的 customSetting 和业务数据传给请求工厂：
+
+```js
+const request = createChatJobRequest({
+  messages,
+}, this.workspace.getCustomSettings(this.id))
+```
+
+请求工厂将业务输入对象和 `customSetting` 作为独立参数接收，根据 `customSetting` 生成通用请求参数，再补充
+`messages` 等 Application 业务字段。它不访问
+Workspace、不选择 API Key、不启动 Job。设置修改只影响之后创建的 Job，已经创建的 Job 使用自己的请求快照。
+
+推荐的调用边界为：
+
+```text
+Application 请求工厂
+  -> 接收业务输入对象、customSetting
+  -> 生成最终 JobRequest
+Workspace.createJob()
+  -> 交给 JobManager 创建并启动 Job
+```
+
 ## Navigation Section 规范
 
 侧边栏区块通过 `WorkspaceNavigation.vue` 中的 `sections` 数组注册：
@@ -127,6 +192,8 @@ Section 组件 emit 事件：
 5. 在 `use-workspace.js` 中 import 并注册到 `applications` 数组
 6. 在 `WorkspaceNavigation.vue` 中 import Section 并注册到 `sections` 数组
 7. 在 `App.vue` 中 import View 并添加 `v-else-if` 分支
+8. 如果 Application 有 Workspace 级设置，实现静态 `schema()`；Workspace 设置页会自动加载并渲染
+9. 如果 Application 创建 Job，将 `createXXXJobRequest()` 单独放在 Application 目录中，并接收 `customSetting`
 
 ## 开发约定
 
@@ -137,5 +204,8 @@ Section 组件 emit 事件：
 - 若有独有 UI 组件，放在该 Application 目录下的 `ui/` 中
 - 各 Application 的状态互不依赖，不应读写其他 Application 的 stateKey
 - `App.vue` 的 view 路由使用 application id 作为 view name（如 `view === 'chat'`）
+- JobRequest 的生成逻辑必须独立成文件，Application Model 只负责准备业务输入并调用请求工厂
+- Workspace 级 `customSettings` 使用独立后端资源，不放入 `WorkspaceState`，也不能通过通用 Store API 绕过设置接口
+- `schema()` 只声明设置字段，不保存运行时值；运行时值由 Workspace 按 Application ID 管理
 - Application 创建 Job 后必须持久化业务对象与 `jobId` 的关联，不能只保存在内存中
 - Job 订阅必须可去重、可取消，不能因为重复调用 `revive()` 产生重复 delta 或订阅泄漏

@@ -3,6 +3,7 @@ import { Subject } from 'rxjs'
 import { BrowserJobManager } from './job-manager.js'
 import { KeyRef } from './key-ref.js'
 import { WorkspaceState } from './state.js'
+import { normalizeCustomSetting, resolveCustomSettings } from './custom-settings.js'
 
 export class Workspace {
   constructor({ id, transport, temporaryKeyRef = null, applications = [] } = {}) {
@@ -18,6 +19,7 @@ export class Workspace {
     this.keyRef = null
     this.temporaryKey = null
     this.error = ''
+    this.customSettings = {}
     this.events = markRaw(new Subject())
     this.temporaryKey = temporaryKeyRef
     this.keyRef = temporaryKeyRef
@@ -31,8 +33,9 @@ export class Workspace {
 
   async load() {
     const applicationKeys = [...this.applications.values()].map(application => application.stateKey || application.id)
-    const [state, keys] = await Promise.all([this.transport.loadState({ summary: true, keys: applicationKeys }), this.transport.listKeys()])
+    const [state, customSettings, keys] = await Promise.all([this.transport.loadState({ summary: true, keys: applicationKeys }), this.transport.loadCustomSettings(), this.transport.listKeys()])
     this.state = new WorkspaceState(state || {})
+    this.customSettings = Object.fromEntries([...this.applications.values()].map(application => [application.id, resolveCustomSettings(application.constructor.schema?.() || {}, customSettings?.[application.id])]))
     this.keys = keys
     await this.jobsManager.load(this.state.jobIds)
     this.jobs = this.jobsManager.snapshots()
@@ -41,6 +44,19 @@ export class Workspace {
     await this.transport.connect()
     this.events.next({ type: 'loaded' })
     return this
+  }
+
+  getCustomSettings(applicationId) { return this.customSettings[applicationId] || {} }
+
+  async updateCustomSetting(applicationId, name, value) {
+    const application = this.applications.get(applicationId)
+    const schema = application?.constructor.schema?.() || {}
+    if (!application || !schema[name]) throw new Error(`未知 customSetting ${applicationId}.${name}`)
+    const current = this.customSettings[applicationId] || {}
+    current[name] = normalizeCustomSetting(schema[name], value, current[name])
+    await this.transport.patchCustomSettings({ [applicationId]: current })
+    this.events.next({ type: 'custom-settings', applicationId })
+    return current[name]
   }
 
   revive() {

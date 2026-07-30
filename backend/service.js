@@ -8,8 +8,8 @@ export function readRecord(store, workspace, name) {
 }
 
 function assertPublicStoreName(name) {
-  if (!['key', 'keys'].includes(name)) return
-  const error = new Error('Store API 不允许操作 keys')
+  if (!['key', 'keys', 'custom-settings'].includes(name)) return
+  const error = new Error('Store API 不允许操作受保护资源')
   error.statusCode = 403
   throw error
 }
@@ -99,6 +99,10 @@ export class BackendService {
     return this.store.write(workspace, 'state', { ...current, ...state })
   }
 
+  getCustomSettings(workspace) { return readRecord(this.store, workspace, 'custom-settings') }
+  setCustomSettings(workspace, settings) { return this.store.write(workspace, 'custom-settings', settings) }
+  patchCustomSettings(workspace, settings) { return this.store.patch(workspace, 'custom-settings', settings) }
+
   listKeys(workspace) {
     return Object.values(readRecord(this.store, workspace, 'keys')).map(({ apiKey, ...key }) => key)
   }
@@ -122,21 +126,23 @@ export class BackendService {
   writeStore(workspace, name, value) { assertPublicStoreName(name); return this.store.write(workspace, name, value) }
   patchStore(workspace, name, value) { assertPublicStoreName(name); return this.store.patch(workspace, name, value) }
   removeStore(workspace, name) { assertPublicStoreName(name); return this.store.remove(workspace, name) }
-  listStore(workspace) { return this.store.list(workspace).filter(name => !['key', 'keys'].includes(name)) }
+  listStore(workspace) { return this.store.list(workspace).filter(name => !['key', 'keys', 'custom-settings'].includes(name)) }
 
   readAllStore(workspace) {
-    const { key, keys, ...data } = this.store.readAll(workspace)
+    const { key, keys, 'custom-settings': customSettings, ...data } = this.store.readAll(workspace)
     return data
   }
 
   writeAllStore(workspace, value) {
-    if (Object.hasOwn(value, 'key') || Object.hasOwn(value, 'keys')) {
+    if (Object.hasOwn(value, 'key') || Object.hasOwn(value, 'keys') || Object.hasOwn(value, 'custom-settings')) {
       const error = new Error('Store API 不允许操作 keys')
       error.statusCode = 403
       throw error
     }
-    const keys = this.store.read(workspace, 'keys')
-    const data = keys === undefined ? value : { ...value, keys }
+    const current = this.store.readAll(workspace)
+    const data = { ...value }
+    if (current.keys !== undefined) data.keys = current.keys
+    if (current['custom-settings'] !== undefined) data['custom-settings'] = current['custom-settings']
     this.store.writeAll(workspace, data)
     return this.readAllStore(workspace)
   }

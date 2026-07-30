@@ -13,7 +13,7 @@ export const icons = {
   plus: path('M12 5v14M5 12h14'),
   close: path('m6 6 12 12M18 6 6 18'),
   edit: path('m4 16.5-.8 4.3 4.3-.8L19 8.5 15.5 5 4 16.5Zm9.8-9.8 3.5 3.5'),
-  trash: path('M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5'),
+  trash: path('M5 7h14M10 7V5h4v2M8 7l1 13h6l1-13M10 11v5M14 11v5'),
   back: path('m14 5-7 7 7 7M8 12h12'),
   check: path('m5 12 4.5 4.5L19 7'),
   send: path('m3.5 11.5 16-7-5.5 15-3.2-5.2L3.5 11.5ZM11 14l8.5-9.5'),

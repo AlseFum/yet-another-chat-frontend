@@ -1,6 +1,13 @@
-import { JobRequest } from '../../../../llm/index.js'
+import { createChatJobRequest } from './chat-job-request.js'
 
 export class ChatApplication {
+  static schema() {
+    return {
+      useInjectedPrompt: { type: 'boolean', label: '使用注入 Prompt', default: false },
+      injectedPrompt: { type: 'textarea', label: '注入 Prompt', default: '' },
+    }
+  }
+
   constructor() {
     this.id = 'chat'
     this.stateKey = 'chat'
@@ -99,6 +106,20 @@ export class ChatApplication {
     return conversation
   }
 
+  async remove(conversationId) {
+    const index = this.conversations.findIndex(item => item.id === conversationId)
+    if (index < 0) return
+    const conversation = this.conversations[index]
+    for (const message of conversation.messages || []) {
+      if (message.jobId && message.streaming) await this.workspace.abortJob(message.jobId)
+    }
+    this.conversations.splice(index, 1)
+    if (this.ui.activeConversationId === conversationId) {
+      this.ui.activeConversationId = this.conversations[index]?.id || this.conversations[index - 1]?.id || this.conversations[0]?.id || null
+    }
+    return this.save()
+  }
+
   async sendMessage(content) {
     const current = this.activeConversation
     const keyRef = this.workspace.selectedKeyRef()
@@ -113,13 +134,9 @@ export class ChatApplication {
     const assistant = current.messages.at(-1)
     await this.save()
 
-    const request = new JobRequest({
-      model: 'deepseek-chat',
+    const request = createChatJobRequest({
       messages: current.messages.filter(message => !message.streaming).map(({ role, content: messageContent }) => ({ role, content: messageContent })),
-      thinking: true,
-      maxTokens: 4096,
-      stream: true,
-    })
+    }, this.workspace.getCustomSettings(this.id))
     try {
       const job = await this.workspace.createJob({
         request,

@@ -69,6 +69,10 @@ export function createBackendTransport(service, { staticDir = null } = {}) {
   app.put('/:workspace/state', (request, response) => response.json(service.setState(request.params.workspace, request.body)))
   app.patch('/:workspace/state', (request, response) => response.json(service.patchState(request.params.workspace, request.body)))
 
+  app.get('/:workspace/custom-settings', (request, response) => response.json(service.getCustomSettings(request.params.workspace)))
+  app.put('/:workspace/custom-settings', (request, response) => response.json(service.setCustomSettings(request.params.workspace, request.body)))
+  app.patch('/:workspace/custom-settings', (request, response) => response.json(service.patchCustomSettings(request.params.workspace, request.body)))
+
   app.get('/:workspace/key', (request, response) => response.json(service.listKeys(request.params.workspace)))
   app.put('/:workspace/key', (request, response) => {
     const key = new LLMKey(request.body)

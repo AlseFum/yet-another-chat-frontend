@@ -8,6 +8,8 @@ function createResource(type) {
 }
 
 export class ResourceApplication {
+  static schema() { return {} }
+
   constructor() {
     this.id = 'resource'
     this.stateKey = 'resource'

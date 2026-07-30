@@ -10,6 +10,7 @@ import { ThemeKey } from './theme/contract.js'
 import { createThemeContext } from './theme/manager.js'
 import ApiKeysView from './views/ApiKeysView.vue'
 import JobsView from './views/JobsView.vue'
+import CustomSettingsView from './views/CustomSettingsView.vue'
 import TransferView from './views/TransferView.vue'
 import WorkspaceNavigation from './workspace/WorkspaceNavigation.vue'
 import WorkspaceToolbar from './workspace/WorkspaceToolbar.vue'
@@ -39,6 +40,7 @@ const {
   applications,
   backendError,
   cleanTerminalJobs,
+  customSettings,
   createServerKey,
   createTemporaryKey,
   deleteServerKey,
@@ -52,6 +54,7 @@ const {
   selectServerKey,
   setRenderMarkdown,
   settingsOpen,
+  updateCustomSetting,
   sidebarOpen,
   view,
   workspaceId,
@@ -73,8 +76,9 @@ const {
       <ChatApplicationView v-if="view === 'chat'" :application="applications.get('chat')" :render-markdown="renderMarkdown" @notify="notify" />
       <ResourceView v-else-if="view === 'resource'" :application="applications.get('resource')" @notify="notify" />
       <ApiKeysView  v-else-if="view === 'keys'" :keys="keys" :selected-key-id="selectedKey" :create-key="createServerKey" :create-temporary-key="createTemporaryKey" :delete-key="deleteServerKey" :select-key="selectServerKey" :error="backendError" />
-      <JobsView     v-else-if="view === 'jobs'" :jobs="jobs" :error="backendError" :load-detail="loadJobDetail" @abort="abortJob" @clean-terminal="cleanTerminalJobs" />
-      <TransferView v-else-if="view === 'transfer'" :workspace="workspaceId" />
+       <JobsView     v-else-if="view === 'jobs'" :jobs="jobs" :error="backendError" :load-detail="loadJobDetail" @abort="abortJob" @clean-terminal="cleanTerminalJobs" />
+       <TransferView v-else-if="view === 'transfer'" :workspace="workspaceId" />
+       <CustomSettingsView v-else-if="view === 'custom-settings'" :applications="applications" :custom-settings="customSettings" :update-setting="updateCustomSetting" @notify="notify" />
     </main>
     <UiToastViewport :items="toasts" @dismiss="dismissToast" />
   </WorkbenchLayout>

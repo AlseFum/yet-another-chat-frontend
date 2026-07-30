@@ -49,6 +49,7 @@ export function useWorkspace({ notify = () => {} } = {}) {
   // ---------------------------------------------------------------------------
 
   const applications = computed(() => { void workspaceVersion.value; return workspace.applications })
+  const customSettings = computed(() => { void workspaceVersion.value; return workspace.customSettings })
   const temporaryKey = computed(() => { void workspaceVersion.value; return workspace.temporaryKey ? { ...workspace.temporaryKey.key, temporary: true } : null })
   const keys = computed(() => { void workspaceVersion.value; return workspace.allKeys() })
   const keyOptions = computed(() => keys.value.map(key => ({ value: key.id, label: key.id, description: key.temporary ? '临时直连' : key.provider })))
@@ -101,6 +102,10 @@ export function useWorkspace({ notify = () => {} } = {}) {
       await workspace.selectKey(keyId)
       notify(`当前 KeyRef 已切换为 ${keyId}`)
     } catch (error) { notify(error.message, 'danger') }
+  }
+
+  function updateCustomSetting(applicationId, name, value) {
+    return workspace.updateCustomSetting(applicationId, name, value)
   }
 
   async function createServerKey(input) {
@@ -162,17 +167,18 @@ export function useWorkspace({ notify = () => {} } = {}) {
     applications,
     backendError,
     cleanTerminalJobs,
+    customSettings,
     createServerKey,
     createTemporaryKey,
     deleteServerKey,
     jobs,
-    keyOptions,
     keys,
     loadJobDetail,
     navigate,
     renderMarkdown,
     selectedKey,
     selectServerKey,
+    updateCustomSetting,
     setRenderMarkdown,
     settingsOpen,
     sidebarOpen,

@@ -28,6 +28,23 @@ section::before { content: ""; position: absolute; z-index: 1; top: var(--decor-
 .sidebar__brand small { color: var(--color-text-faint); font-size: 10px; letter-spacing: .08em; }
 .brand-glyph { display: grid; width: 30px; height: 30px; flex: 0 0 auto; place-items: center; border: 1px solid var(--color-positive); border-radius: var(--radius-sm); color: var(--color-positive); font-size: 10px; font-weight: 800; }
 .side-section { border-bottom: 1px solid var(--color-border); }
+
+.custom-settings-view { display: flex; flex: 1; min-width: 0; min-height: 0; }
+.custom-settings-list { width: 240px; flex: 0 0 240px; overflow: auto; border-right: 1px solid var(--color-border); background: var(--color-surface); }
+.custom-settings-list header, .custom-settings-editor > header { padding: var(--space-5); border-bottom: 1px solid var(--color-border); }
+.custom-settings-list h2, .custom-settings-editor h1 { margin: 4px 0 0; font-size: 20px; }
+.custom-settings-list > button { display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 12px var(--space-5); border: 0; border-bottom: 1px solid var(--color-border); background: transparent; cursor: pointer; text-align: left; }
+.custom-settings-list > button.active { background: var(--color-positive-soft); color: var(--color-positive); }
+.custom-settings-list > button span:last-child { color: var(--color-text-faint); font-size: 12px; }
+.custom-settings-editor { flex: 1; min-width: 0; overflow: auto; }
+.custom-settings-editor > header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.custom-settings-fields { display: grid; max-width: 720px; gap: var(--space-5); padding: var(--space-5); }
+.custom-setting-field { display: grid; gap: 8px; }
+.custom-setting-field__label { display: grid; gap: 3px; font-weight: 650; }
+.custom-setting-field__label small { color: var(--color-text-faint); font-size: 12px; font-weight: 400; }
+.custom-setting-field input, .custom-setting-field textarea { width: 100%; border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-surface-raised); padding: 10px 12px; }
+.custom-setting-field textarea { min-height: 120px; resize: vertical; }
+.empty-state { padding: var(--space-5); color: var(--color-text-faint); }
 .side-section > header { display: flex; min-height: 38px; align-items: center; gap: var(--space-2); padding: 0 var(--space-2) 0 var(--space-3); color: var(--color-text-muted); cursor: pointer; font-size: 11px; font-weight: 700; letter-spacing: .04em; }
 .side-section > header > span:nth-child(2) { flex: 1; }
 .side-section > header .ui-button { opacity: 0; }
@@ -37,8 +54,13 @@ section::before { content: ""; position: absolute; z-index: 1; top: var(--decor-
 .side-list { display: grid; max-height: 190px; overflow: auto; padding: 0 var(--space-2) var(--space-2); }
 .side-list button, .resource-nav button, .sidebar__utilities button { display: flex; width: 100%; min-height: 31px; align-items: center; gap: var(--space-2); border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--color-text-muted); cursor: pointer; font-size: 12px; text-align: left; transition: background var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard); }
 .side-list button { justify-content: space-between; padding: 0 var(--space-2); }
-.side-list button .app-icon { opacity: 0; }
-.side-list button:hover .app-icon { opacity: 1; }
+.conversation-entry { display: flex; align-items: center; border: 1px solid transparent; border-radius: var(--radius-sm); }
+.conversation-entry > button { min-width: 0; flex: 1 1 auto; border: 0; }
+.conversation-entry > button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conversation-entry > .ui-button { width: auto; flex: 0 0 28px; opacity: 0; }
+.conversation-entry > .conversation-delete:hover { color: var(--color-danger); background: var(--color-surface-hover); }
+.conversation-entry:hover, .conversation-entry.active { border-color: var(--color-border-strong); background: var(--color-positive-soft); color: var(--color-positive); }
+.conversation-entry:hover > .ui-button, .conversation-entry.active > .ui-button { opacity: 1; }
 .side-list button:hover, .resource-nav button:hover, .sidebar__utilities button:hover { background: var(--color-surface-hover); color: var(--color-text); }
 .side-list button.active, .resource-nav button.active, .sidebar__utilities button.active { border-color: var(--color-border-strong); background: var(--color-positive-soft); color: var(--color-positive); }
 .resource-nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-1); padding: 0 var(--space-2) var(--space-2); }
@@ -380,6 +402,23 @@ section::before { content: ""; position: absolute; z-index: 1; top: var(--decor-
   .transfer-grid h2, .transfer-grid p { overflow-wrap: anywhere; }
   .transfer-grid .ui-button { width: 100%; justify-self: stretch; }
   .file-drop { width: 100%; min-height: 110px; padding: var(--space-3); text-align: center; }
+
+  .custom-settings-view { display: block; overflow: auto; }
+  .custom-settings-list { display: block; width: 100%; border-right: 0; border-bottom: 1px solid var(--color-border); }
+  .custom-settings-list header { display: flex; align-items: baseline; justify-content: space-between; padding: var(--space-3); }
+  .custom-settings-list h2 { font-size: 17px; }
+  .custom-settings-list > button { display: inline-flex; width: auto; min-width: 116px; margin: 0 0 var(--space-3) var(--space-3); padding: 9px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+  .custom-settings-list > button:last-of-type { margin-right: var(--space-3); }
+  .custom-settings-list > button.active { border-color: var(--color-positive); }
+  .custom-settings-editor { overflow: visible; }
+  .custom-settings-editor > header { align-items: flex-start; padding: var(--space-4) var(--space-3); }
+  .custom-settings-editor h1 { font-size: 18px; }
+  .custom-settings-editor > header .ui-button { flex: 0 0 auto; }
+  .custom-settings-fields { max-width: none; gap: var(--space-4); padding: var(--space-4) var(--space-3); }
+  .custom-setting-field { min-width: 0; }
+  .custom-setting-field input, .custom-setting-field textarea { min-width: 0; }
+  .custom-setting-field .ui-combobox, .custom-setting-field .ui-switch { width: 100%; }
+  .custom-setting-field .combobox-trigger { width: 100%; }
 }
 
 @media (max-width: 420px) {
