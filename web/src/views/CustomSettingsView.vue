@@ -12,6 +12,7 @@ const entries = computed(() => [...(props.applications?.values() || [])].filter(
 const selected = computed(() => entries.value.find(application => application.id === selectedId.value) || entries.value[0] || null)
 const schema = computed(() => selected.value?.constructor.schema?.() || {})
 const values = computed(() => props.customSettings?.[selected.value?.id] || {})
+const formatVariable = variable => `{{${variable}}}`
 
 async function update(name, value) {
   try {
@@ -41,6 +42,7 @@ async function update(name, value) {
           <UiSwitch v-else-if="field.type === 'boolean'" :model-value="values[name]" :label="field.label || name" :description="field.description" @update:model-value="update(name, $event)" />
           <textarea v-else-if="field.type === 'textarea'" :value="values[name]" rows="6" @change="update(name, $event.target.value)" />
           <input v-else :type="field.type === 'number' ? 'number' : 'text'" :value="values[name]" :maxlength="field.type === 'text' ? 80 : undefined" :min="field.min" :max="field.max" :step="field.step" @change="update(name, field.type === 'number' ? Number($event.target.value) : $event.target.value)" />
+          <small v-if="field.variables?.length" class="custom-setting-field__variables">可用参数：<code v-for="variable in field.variables" :key="variable">{{ formatVariable(variable) }}</code></small>
         </label>
       </div>
     </main>

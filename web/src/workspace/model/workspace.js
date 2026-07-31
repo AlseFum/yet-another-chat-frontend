@@ -4,6 +4,7 @@ import { BrowserJobManager } from './job-manager.js'
 import { KeyRef } from './key-ref.js'
 import { WorkspaceState } from './state.js'
 import { normalizeCustomSetting, resolveCustomSettings } from './custom-settings.js'
+import { ResourceCapability } from './resource-capability.js'
 
 export class Workspace {
   constructor({ id, transport, temporaryKeyRef = null, applications = [] } = {}) {
@@ -20,6 +21,8 @@ export class Workspace {
     this.temporaryKey = null
     this.error = ''
     this.customSettings = {}
+    const resourceApplication = this.applications.get('resource')
+    this.resources = resourceApplication ? markRaw(new ResourceCapability(resourceApplication)) : null
     this.events = markRaw(new Subject())
     this.temporaryKey = temporaryKeyRef
     this.keyRef = temporaryKeyRef
@@ -41,7 +44,10 @@ export class Workspace {
     this.jobs = this.jobsManager.snapshots()
     this.revive()
     for (const application of this.applications.values()) application.init?.()
-    await this.transport.connect()
+    void this.transport.connect().catch(error => {
+      this.error = error.message
+      this.events.next({ type: 'transport.error', error: error.message })
+    })
     this.events.next({ type: 'loaded' })
     return this
   }
@@ -152,6 +158,7 @@ export class Workspace {
   }
 
   close() {
+    this.resources?.close()
     for (const application of this.applications.values()) application.close?.()
     this.jobSubscription.unsubscribe()
     this.events.complete()

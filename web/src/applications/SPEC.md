@@ -49,6 +49,68 @@ applications/
 
 其他业务方法由各 Application 自行定义。
 
+### Resource Capability
+
+ResourceApplication 负责资源内部状态和持久化；Workspace 将它包装为 `workspace.resources` capability，供
+Chat、Tool 和其他 Application 使用。外部不得直接访问或修改 `ResourceApplication.text`、`preset`、`tool`
+数组。
+
+只读借用对应 Rust 的 `&T`，返回 `Result<ReadLease>`：
+
+```js
+const result = workspace.resources.borrow('text', textId)
+if (!result.ok) throw result.error
+
+const lease = result.value
+const text = lease.read()
+lease.release()
+```
+
+同一 Resource 可以同时存在多个只读 lease。`read()` 返回资源快照，修改快照不会改动 ResourceApplication。
+
+可变借用对应 Rust 的 `&mut T`，返回 `Result<WriteLease>`：
+
+```js
+const result = workspace.resources.borrowMut('text', textId)
+if (!result.ok) throw result.error
+
+const lease = result.value
+const updateResult = await lease.update({ content: '新内容' })
+lease.release()
+if (!updateResult.ok) throw updateResult.error
+```
+
+可变 lease 提供 `update(patch)` 和 `replace(value)`；两者通过 ResourceApplication 保存，并返回
+`Promise<Result<ResourceSnapshot>>`。借用规则如下：
+
+- 没有可变 lease 时，可以取得任意数量的只读 lease
+- 存在任意只读 lease 时，不能取得可变 lease
+- 存在可变 lease 时，不能取得其他只读或可变 lease
+- 资源不存在、类型无效或借用冲突都返回 `{ ok: false, error }`，不会因冲突直接抛出
+- lease 的方法在 `release()` 后调用属于编程错误，会抛出 `LEASE_RELEASED`
+- 调用方必须在 `finally` 中释放 lease；Workspace 关闭时会统一丢弃剩余 lease
+
+Resource capability 另提供不占用 lease 的只读快照方法：
+
+```js
+workspace.resources.list('tool')
+workspace.resources.get('preset', presetId)
+```
+
+需要跨多个异步步骤保证资源不被其他调用方修改时，必须使用 lease，而不是重复调用 `get()`。
+
+借用冲突时可以等待一段有限时间：
+
+```js
+const readResult = await workspace.resources.borrowUntil('text', textId, 1500)
+const writeResult = await workspace.resources.borrowMutUntil('text', textId, 1500)
+```
+
+两者都返回 `Promise<Result<Lease>>`。如果 lease 在 `timeoutMs` 内可用，就按普通 `borrow()` / `borrowMut()`
+返回；超过时间则返回错误码 `TIMEOUT`。资源不存在和类型无效会立即返回，不进入等待。`timeoutMs` 必须是
+大于等于 0 的有限数字；`0` 表示只尝试一次，冲突时立即返回 `TIMEOUT`。Workspace 关闭时，所有等待请求
+返回 `CLOSED`，已经取得的 lease 也会失效。
+
 ### State 持久化
 
 Application 的状态通过 `stateKey` 作为顶层 key 存储在 Workspace State 中，结构为 `{ ui: {...} }` + 各业务数据字段。由 `sync()` 写入、`revive()` 读取。
@@ -124,6 +186,48 @@ Chat 的 Workspace 级设置只用于 Prompt 注入：`useInjectedPrompt` 控制
 第一版支持五种 field：`number`、`text`、`select`、`textarea`、`boolean`。字段名就是 object key。所有
 字段支持 `type`、`label`、`description`、`default`；`number` 额外支持 `min`、`max`、`step`，
 `select` 支持 `options`。`text` 由通用编辑器限制为单行、最多 80 个字符。
+
+`textarea` 类型可以声明 `variables` 数组，用于说明 Prompt 模板支持的插值参数。通用设置页面会在输入框
+下方展示这些参数，例如 `variables: ['name', 'content']` 会显示 `{{name}}` 和 `{{content}}`。实际插值由
+对应的 `createXXXJobRequest({ businessInput }, customSetting)` 完成。
+
+Resource Application 的 `customSettings` 按资源类型分别提供 `generateTextPrompt`、`generatePresetPrompt` 和
+`generateToolPrompt`，另有生成 Temperature 和 Max tokens。三类资源都可以在编辑页通过 AI 生成按钮创建或重写
+内容。生成模板使用 `{{name}}`、`{{content}}`、`{{description}}`、`{{temperature}}`、`{{maxTokens}}` 等插值，
+请求工厂只替换当前资源类型需要的变量。生成 Job 仍通过 Workspace 创建，生成过程中的临时 `generating`
+状态不写入 Resource State。
+
+Resource Application 还提供统一的 `autoSave` 设置，作用于 Text、Preset 和 Tool 三类资源。开启时，编辑内容
+会在短暂防抖后自动保存；关闭时，编辑页显示手动“保存”按钮。创建、删除和 AI 生成等结构性操作无论保存
+模式如何都应立即持久化。
+
+Tool 编辑器使用固定的 `async function <name>(ctx) { ... }` 外壳，资源内容只保存函数体。Tool 只维护一个
+`args` 文本，用于说明调用方传入的 `ctx.args`；不再拆成参数列表。运行时 `ctx` 还提供 `fetch`、`signal`、
+`workspace`、`job`、`resources` 和 `logger` 等全局能力。Tool 的生成 Prompt 通过 `{{functionName}}`、
+`{{args}}` 和 `{{globals}}` 提供这些上下文；函数名支持 Unicode 标识符，不得让模型重复生成函数声明或代码围栏。
+
+Text 还支持根据当前内容生成可选的高亮规则。高亮规则保存在 Text 资源的 `highlights` 数组中，不修改正文：
+
+```js
+{
+  pattern: 'TODO|FIXME',
+  className: 'keyword',
+  description: '待处理标记',
+  color: '#f59e0b',
+  background: '',
+  bold: false,
+  italic: false,
+  underline: false,
+  strikethrough: false,
+  enabled: true,
+}
+```
+
+`pattern` 是要匹配的字面量文本，不执行 JavaScript 正则表达式；`className` 只能使用字母、数字、下划线和短横线，并映射到编辑器。
+规则还支持可编辑的 `color`、`background`、`bold`、`italic`、`underline` 和 `strikethrough` 样式字段。
+的 `cm-resource-highlight-*` 样式。生成规则使用独立的 `generateHighlightPrompt`，通过 `{{name}}` 和
+`{{content}}` 插值；请求使用 JSON Schema 校验和有限重试，遇到 `Unexpected end of JSON input` 等不完整 JSON
+时会要求模型重新输出。重试过程中的旧输出不会和新输出拼接；规则生成失败时不得覆盖已有规则。
 
 Workspace 存储结构与 `state`、`jobs`、`keys` 独立，实际设置按 Application ID 保存：
 

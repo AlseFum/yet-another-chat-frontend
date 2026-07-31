@@ -31,6 +31,9 @@
   --control-height: 34px;
   --control-compact-height: 30px;
   --control-padding-x: 10px;
+  --textarea-radius: 1px;
+  --textarea-padding: 11px 12px;
+  --textarea-line-height: 1.7;
   --combobox-popup-offset: 5px;
   --combobox-popup-radius: 1px;
   --combobox-popup-shadow: var(--shadow-lg);
@@ -119,6 +122,10 @@
   --shadow-lg: 0 0 0 1px #54d9ff33, 0 20px 52px #000000a6;
   --focus-ring: 0 0 0 3px #54d9ff29;
   --control-background: #0d1a24;
+  --textarea-background: #081119;
+  --textarea-border: #1a3643;
+  --textarea-border-active: #54d9ff;
+  --textarea-placeholder: #587887;
   --control-border: #1a3643;
   --control-border-active: #54d9ff;
   --control-option-active: #162935;
@@ -168,6 +175,10 @@
   --shadow-lg: 0 0 0 1px #08799c3d, 0 18px 42px #1026303d;
   --focus-ring: 0 0 0 3px #08799c29;
   --control-background: #e2edf1;
+  --textarea-background: #f2f8fa;
+  --textarea-border: #abc4cd;
+  --textarea-border-active: #08799c;
+  --textarea-placeholder: #6d8995;
   --control-border: #abc4cd;
   --control-border-active: #08799c;
   --control-option-active: #d1e2e8;

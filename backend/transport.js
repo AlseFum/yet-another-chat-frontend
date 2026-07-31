@@ -98,7 +98,7 @@ export function createBackendTransport(service, { staticDir = null } = {}) {
     app.use(express.static(staticDir, { index: 'index.html' }))
     app.use((request, response, next) => {
       const acceptsHtml = request.method === 'GET' || request.method === 'HEAD'
-        ? request.headers.accept?.includes('text/html')
+        ? !request.path.split('/').at(-1).includes('.')
         : false
       if (!acceptsHtml) return next()
       response.sendFile('index.html', { root: staticDir }, error => error && next(error))

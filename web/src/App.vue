@@ -74,7 +74,7 @@ const {
     </section>
     <main :key="theme.revision.value" class="workbench__content">
       <ChatApplicationView v-if="view === 'chat'" :application="applications.get('chat')" :render-markdown="renderMarkdown" @notify="notify" />
-      <ResourceView v-else-if="view === 'resource'" :application="applications.get('resource')" @notify="notify" />
+       <ResourceView v-else-if="view === 'resource'" :application="applications.get('resource')" @notify="notify" @open-sidebar="sidebarOpen = true" />
       <ApiKeysView  v-else-if="view === 'keys'" :keys="keys" :selected-key-id="selectedKey" :create-key="createServerKey" :create-temporary-key="createTemporaryKey" :delete-key="deleteServerKey" :select-key="selectServerKey" :error="backendError" />
        <JobsView     v-else-if="view === 'jobs'" :jobs="jobs" :error="backendError" :load-detail="loadJobDetail" @abort="abortJob" @clean-terminal="cleanTerminalJobs" />
        <TransferView v-else-if="view === 'transfer'" :workspace="workspaceId" />

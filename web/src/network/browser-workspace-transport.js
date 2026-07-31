@@ -67,7 +67,10 @@ export class BrowserWorkspaceTransport {
   connectEvents() {
     if (this.eventSource) return this.eventReady || Promise.resolve()
     const source = new EventSource(this.url('/event'))
-    this.eventReady = new Promise(resolve => source.addEventListener('open', resolve, { once: true }))
+    this.eventReady = new Promise((resolve, reject) => {
+      const timeout = window.setTimeout(() => reject(new Error('SSE 连接超时，页面将继续使用 HTTP')), 5000)
+      source.addEventListener('open', () => { window.clearTimeout(timeout); resolve() }, { once: true })
+    })
     source.addEventListener('job', event => {
       try { this.events.next(JSON.parse(event.data)) } catch (error) { this.events.next({ type: 'transport.error', error: error.message }) }
     })
