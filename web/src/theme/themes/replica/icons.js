@@ -3,6 +3,11 @@ const path = d => [{ tag: 'path', attrs: { d } }]
 export const icons = {
   menu: path('M4 7h16M4 12h16M4 17h16'),
   message: path('M20 11.5a7.5 7.5 0 0 1-11.3 6.5L4 19.5l1.4-4A7.5 7.5 0 1 1 20 11.5Z'),
+  'scope-all': path('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm-7 9h14M12 3c2 2.2 3 5.2 3 9s-1 6.8-3 9c-2-2.2-3-5.2-3-9s1-6.8 3-9Z'),
+  'scope-chat': path('M4 5h16v11H9l-5 3V5Zm4 4h8m-8 3h5'),
+  'scope-talk': path('M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8 1a3 3 0 1 0 0-6m-12 8c-3 1-4 3-4 6h16c0-3-1-5-4-6m4 0c2 .7 3 2.2 3 5'),
+  'scope-public': path('M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Zm9 2.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z'),
+  at: path('M16 8.5v5a2.5 2.5 0 0 0 5 0v-1.5a9 9 0 1 0-3.2 6.9M16 13.5a4 4 0 1 1-8 0v-1a4 4 0 1 1 8 0v1Z'),
   file: path('M6 3h8l4 4v14H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm8 0v5h5M8 13h8M8 17h6'),
   preset: path('M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01'),
   tool: path('M14.7 6.2a5 5 0 0 0-6.5 6.5L3.5 17.4a2.1 2.1 0 1 0 3 3l4.7-4.7a5 5 0 0 0 6.5-6.5l-3 3-2.2-2.2Z'),
@@ -38,4 +43,6 @@ export const icons = {
   output: path('M4 4h16v16H4zM12 8v8m-4-4 4 4 4-4'),
   condition: path('M12 3 3 12l9 9 9-9-9-9Z'),
   bug: path('M9 8h6a3 3 0 0 1 3 3v5a4 4 0 0 1-8 0v-5a3 3 0 0 1 3-3ZM12 4v4M5 11h5M14 11h5M5 16h5M14 16h5'),
+  brain: path('M9 5a3 3 0 0 0-5 2.2A3.5 3.5 0 0 0 4 14a3 3 0 0 0 5 2.3V5Zm6 0a3 3 0 0 1 5 2.2A3.5 3.5 0 0 1 20 14a3 3 0 0 1-5 2.3V5ZM9 9H7m2 4H6m9-4h2m-2 4h3M12 4v16'),
+  workflow: path('M5 4h6v5H5V4Zm8 11h6v5h-6v-5ZM8 9v4a4 4 0 0 0 4 4h1M11 6h3a4 4 0 0 1 4 4v5'),
 }

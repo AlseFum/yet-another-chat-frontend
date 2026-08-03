@@ -1,4 +1,5 @@
 export * from './result.js'
+export * from './match.js'
 export * from './async.js'
 export * from './stream.js'
 export * from './workspace.js'

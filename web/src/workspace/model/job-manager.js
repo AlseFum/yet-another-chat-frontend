@@ -15,7 +15,12 @@ export class BrowserRemoteJob {
     if (snapshot) Object.assign(this, snapshot)
     if (event?.type === 'delta' && !snapshot?.responseText) this.responseText += event.content || ''
     if (event?.type === 'delta' && !snapshot?.reasoning) this.reasoning += event.reasoning || ''
-    this.events.next(event || { jobId: this.id, type: 'state', state: this.status })
+    const enrichedEvent = event?.type === 'result'
+      ? { ...event, value: event.value ?? this.value, rawText: event.rawText ?? this.responseText }
+      : event?.type === 'delta'
+        ? { ...event, responseText: this.responseText, responseReasoning: this.reasoning }
+        : event
+    this.events.next(enrichedEvent || { jobId: this.id, type: 'state', state: this.status })
   }
 
   onEvent(listener) { return this.events.subscribe(listener) }

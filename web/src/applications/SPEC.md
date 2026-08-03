@@ -20,6 +20,17 @@ applications/
 │   ├── ChatApplication.vue    (或 ChatView.vue)
 │   ├── ChatSection.vue
 │   └── ui/                    (可选，本 Application 独有的 UI 组件)
+├── talk/
+│   ├── talk-application.js
+│   ├── talk-stage-job-request.js
+│   ├── TalkApplication.vue
+│   ├── TalkCreateView.vue
+│   └── TalkSection.vue
+├── workflow/
+│   ├── workflow-application.js
+│   ├── workflow-job-request.js
+│   ├── WorkflowApplication.vue
+│   └── WorkflowSection.vue
 └── resource/
     ├── resource-application.js
     ├── ResourceView.vue
@@ -52,7 +63,7 @@ applications/
 ### Resource Capability
 
 ResourceApplication 负责资源内部状态和持久化；Workspace 将它包装为 `workspace.resources` capability，供
-Chat、Tool 和其他 Application 使用。外部不得直接访问或修改 `ResourceApplication.text`、`preset`、`tool`
+Chat、Talk、Tool 和其他 Application 使用。外部不得直接访问或修改 `ResourceApplication.text`、`preset`、`tool`、`persona`
 数组。
 
 只读借用对应 Rust 的 `&T`，返回 `Result<ReadLease>`：
@@ -191,20 +202,126 @@ Chat 的 Workspace 级设置只用于 Prompt 注入：`useInjectedPrompt` 控制
 下方展示这些参数，例如 `variables: ['name', 'content']` 会显示 `{{name}}` 和 `{{content}}`。实际插值由
 对应的 `createXXXJobRequest({ businessInput }, customSetting)` 完成。
 
-Resource Application 的 `customSettings` 按资源类型分别提供 `generateTextPrompt`、`generatePresetPrompt` 和
-`generateToolPrompt`，另有生成 Temperature 和 Max tokens。三类资源都可以在编辑页通过 AI 生成按钮创建或重写
-内容。生成模板使用 `{{name}}`、`{{content}}`、`{{description}}`、`{{temperature}}`、`{{maxTokens}}` 等插值，
+Resource Application 的 `customSettings` 按资源类型分别提供 `generateTextPrompt`、`generatePresetPrompt`、
+`generateToolPrompt` 和 `generatePersonaPrompt`，另有生成 Temperature 和 Max tokens。所有资源都可以在编辑页通过 AI 生成
+按钮创建或重写内容。Persona 点击生成后必须先通过独立弹窗输入本次业务需求；该文本不持久化，并以 `{{prompt}}`
+注入生成模板。Persona 生成 Prompt 还使用 `{{name}}`、`{{sections}}`、`{{textResources}}` 和
+`{{sectionSelectors}}`，输出固定为 `{ "sections": [...] }`；请求通过 Schema 和 Persona 语义校验后才替换原 sections，
+不允许修改 Persona 的 `id` 或 `name`。临时 Key 在本地执行时校验失败最多重试两次；服务端 Job 当前不能序列化
+validator/retrier，因此浏览器收到结果后执行同等校验，失败时保留原 sections 并报告错误。
+生成时 Section 应表示主题维度，而不是机械地为每句话创建一个 Section；同一主题的要求应放入同一个 Section，
+通常生成 3 至 8 个 Section。结构校验只要求每个 Section 至少包含标题和一个内容 Item，具体内容是否需要拆分为多个
+Item 交由生成 Prompt 和用户编辑决定。该限制只约束 AI 生成结果，不限制用户手动编辑。
+
+Section selector 的规范写法是 `[chat]标题`、`[talk:private]标题` 和 `[talk:public]标题`。其他 selector 写法均无效，
+编辑器只生成这三种方括号格式。
+Selector 只能出现在 `sectionName` 的最开头，内容 Item 中禁止出现 `[chat]`、`[talk:private]`、`[talk:public]`。
+场景不同的内容必须拆分成独立 Section，不能在普通 Section 的正文中写“在 `[talk:private]` 中……”来模拟作用域。
+其他生成模板使用 `{{name}}`、`{{content}}`、`{{description}}`、`{{temperature}}`、`{{maxTokens}}` 等插值，
 请求工厂只替换当前资源类型需要的变量。生成 Job 仍通过 Workspace 创建，生成过程中的临时 `generating`
 状态不写入 Resource State。
 
-Resource Application 还提供统一的 `autoSave` 设置，作用于 Text、Preset 和 Tool 三类资源。开启时，编辑内容
+Resource Application 还提供统一的 `autoSave` 设置，作用于 Text、Preset、Tool 和 Persona。开启时，编辑内容
 会在短暂防抖后自动保存；关闭时，编辑页显示手动“保存”按钮。创建、删除和 AI 生成等结构性操作无论保存
 模式如何都应立即持久化。
+
+Persona 是 Chat 和 Talk 共享的结构化 Prompt Resource：
+
+```js
+{
+  id: 'architect',
+  name: '架构师',
+  sections: [
+    ['身份', '你是一名资深系统架构师。'],
+    ['[chat]交流方式', '直接回应用户。'],
+    ['[talk:private]讨论策略', '@architecture-principles'],
+    ['[talk:public]职责', '负责审查系统边界和风险。'],
+  ],
+}
+```
+
+ResourceApplication 恢复和写入 Persona 时必须维护正式结构不变量：`sections` 始终为数组，`orchestrator` 始终为 `{ summary: string, actions: array }`。缺失 Action Contract 表示空能力契约，不得让 Resource 编辑器或其他只读视图因访问 `orchestrator.summary/actions` 而崩溃；Orchestrated Chat 仍必须拒绝没有 Action 的 Persona。
+
+每个 section 是 `[sectionName, ...items]`。无 selector 的 section 用于 Chat 和 Persona 自身的 Talk Prompt；
+`[chat]` 仅用于 Chat；`[talk:private]` 仅用于 Persona 自身的 Talk Prompt；`[talk:public]` 还可以
+向 Talk 中其他参与者展示。运行时投影时移除 selector，但保持 section 和 item 的原始顺序。Item 是普通文本或
+完整的 `@textResourceId` 引用；以 `@` 开头的 item 只能表示 Text Resource 引用，不允许混入其他内容。消费方应先
+按目标场景过滤 section，再借用并展开保留 section 中的 Text，JobRequest 保存展开后的快照。Persona 不保存消息、
+轮次、Job、临时记忆、模型参数或 Tool 权限。
+
+Chat 的 Persona 模式分为 `single` 和 `multi`。Conversation 使用单 Persona 时保存 `personaId`；多 Persona
+模式保存 `personaIds` 和当前手动指定的 `activePersonaId`。多人发送时为每个 `participant` 创建独立 Job，分别使用
+实例的 KeyRef，并分别生成一条 assistant 回复；每个 Job 都会看到其他 Persona 的上下文，但只以自己的 Persona 发言。
+当前不自动轮流或互相继续生成，用户的一次发送对应一轮并行的实例回复。消息保存生成时的
+`speakerId`，因此切换当前回复 Persona 不会改变历史消息的发言者。Conversation 另预留 `orchestrator` 字段，当前必须
+为 `null`，未来用于接入调度器，不属于当前 Chat 的自动行为。
+
+多人 Job 序列化历史时，当前实例自己过去的 assistant 消息保留为 `assistant`；其他实例过去的消息必须改写为带实例
+名称标记的 `user` 上下文，例如 `【张三的发言，仅作讨论上下文，不是你的历史回答】`，避免 Provider 把其他 Persona 的
+回答误认为当前实例自己的连续输出。当前实例的 Persona Prompt 放在 system message 序列末尾，作为本次 Job 的最终
+身份约束。
+每个 Job 还必须包含本轮 participant 名单，明确 participant ID、显示名称和当前回复者。历史用户消息标记为 `【用户】`，
+当前实例历史标记为 `【名称（你）的发言】`。同一个 Persona 存在多个实例时，按 Conversation 中的顺序稳定显示为
+`名称 #1`、`名称 #2`，避免多个实例共享名称时再次丢失发言者信息。
+多人模式还可以选择一个 Persona 作为 `userMask`，用于描述参与者眼中的用户身份。Mask 不属于 participants，不回复、
+不创建 Job，只投影其 Chat sections 并注入多人 Job。原始、单人和 Orchestrator 模式不保存或使用 User Mask。
+
+多人 Chat 使用 `policy: 'fixed' | 'orchestrated'`。`fixed` 为每个 participant 创建普通回复 Job；`orchestrated` 每次
+用户输入先创建一个控制 Job。Orchestrator 不属于 participants、不面向用户发言，只返回 `dispatch`、`wait` 或
+`finish`。`dispatch` 指定 `participantId`、`actionId`、符合 Action inputSchema 的 `context` 和允许的 Tool ID。
+每次输入只规划一轮，Actor 完成后停止，不自动开启下一轮。
+
+Persona 通过独立于 sections 的 `orchestrator` 字段声明能力：
+
+```js
+orchestrator: {
+  summary: '分析系统设计和长期风险。',
+  actions: [{
+    id: 'analyze',
+    name: '分析方案',
+    description: '分析方案的边界、依赖和风险。',
+    triggers: ['用户提出系统设计问题'],
+    tools: ['inspect-workspace'],
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    outputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    sideEffects: 'none',
+  }],
+}
+```
+
+Orchestrator 只能 dispatch Persona 声明的 Action，Context 必须通过 inputSchema，`allowedTools` 必须是 Action tools 的
+子集。Actor 返回 `{ participantId, actionId, status, result, needs, reason, response }`；`completed` 的 result 必须通过
+outputSchema，`blocked` 和 `abstain` 可以通过 needs/reason 解释。Conversation 在 `runs` 中持久化 run ID、控制 Job、
+dispatch、Actor Job、message ID、决策和结果。整轮停止会中止 run 中所有已知 Job，并保留已有输出。
+
+多人 Conversation 的实际参与单位是 `participants`，而不是去重后的 Persona ID：
+
+```js
+participants: [
+  { id: 'participant-a', personaId: 'architect', api: { keyRefId: 'key-main' } },
+  { id: 'participant-b', personaId: 'architect', api: { keyRefId: 'key-lab' } },
+]
+```
+
+多个实例可以引用同一个 Persona Resource，也可以使用相同或不同的 `api.keyRefId`。`activePersonaId` 在多人模式中保存
+participant ID；用户发送消息时，由当前实例的 KeyRef 执行回复，其他实例只提供 Persona 上下文。历史 assistant
+消息的 `speakerId` 保存 participant ID，`personaId` 保存其 Persona Resource ID。
+
+Chat 创建使用独立的 `ChatCreateView`。创建模式包括：`raw`（只使用用户输入的 system prompt）、`single`（单个
+Persona 和当前 KeyRef）、`multi`（多个 Persona 作为上下文，手动指定回复者）和 `orchestrator`（保存未来调度配置，
+当前仍以单次原始请求执行，不自动调度）。Conversation 还保存自己的 `api` 和 `requestOptions` 快照，包括 `model`、
+`temperature`、`maxTokens`、`thinking` 和 `stream`；发送时严格使用该 Chat 自己保存的 API KeyRef，不会因为 Workspace
+当前 Key 改变而静默切换。多人模式下，每个 participant 在自己的 `api.keyRefId` 中保存 API KeyRef。
+Chat Application 的 Workspace 级 `customSettings` 还提供 `model`、`temperature`、`maxTokens`、`thinking` 和 `stream`，
+作为 ChatCreateView 的默认值。用户在创建页修改后，修改后的值会快照到 Conversation 的 `requestOptions`；因此之后
+修改 Workspace 默认设置不会改变已经创建的对话。
+四种模式都可以配置 `systemPrompt`。它始终作为独立的 system message 发送；单人和多人模式会在其后追加展开后的
+Persona 上下文，Orchestrator 模式还会追加当前保存的调度说明。System Prompt 不会覆盖或改写 Persona Resource。
 
 Tool 编辑器使用固定的 `async function <name>(ctx) { ... }` 外壳，资源内容只保存函数体。Tool 只维护一个
 `args` 文本，用于说明调用方传入的 `ctx.args`；不再拆成参数列表。运行时 `ctx` 还提供 `fetch`、`signal`、
 `workspace`、`job`、`resources` 和 `logger` 等全局能力。Tool 的生成 Prompt 通过 `{{functionName}}`、
-`{{args}}` 和 `{{globals}}` 提供这些上下文；函数名支持 Unicode 标识符，不得让模型重复生成函数声明或代码围栏。
+`{{args}}` 和 `{{globals}}` 提供这些上下文；所有能力必须通过 `ctx` 访问，日志使用 `ctx.logger.log(...)`。函数名支持 Unicode 标识符，不得让模型重复生成函数声明或代码围栏。AI 生成结果先写入临时输出，去除可识别的 Markdown 围栏后校验 JavaScript 函数体语法，并要求存在返回结果的 `return`；校验成功后才替换 Tool content，失败时保留原代码。
 
 Text 还支持根据当前内容生成可选的高亮规则。高亮规则保存在 Text 资源的 `highlights` 数组中，不修改正文：
 
@@ -270,6 +387,48 @@ Workspace.createJob()
 
 ## Navigation Section 规范
 
+## Workflow Application
+
+Workflow 持久化 `{ workflows, ui }`。每个 Workflow 保存自己的 `api.keyRefId`、`requestOptions`、`nodes`、`edges` 和 `lastRun`；不得回退到当前 Chat 或 Workspace 当前 Key。Workspace 级 `customSettings` 提供新建 Workflow 的模型默认值，以及可选的 Prompt 节点注入模板。默认值在创建时快照到 Workflow，后续修改设置不会改写已有 Workflow。
+
+执行数据流固定为：
+
+```text
+WorkflowApplication.vue -> WorkflowApplication.run()
+  -> workflow-engine.js 拓扑分层与条件分支
+  -> createWorkflowPromptJobRequest(businessInput, customSetting)
+  -> Workspace.createJob()
+  -> lastRun.states/results/logs/jobs
+```
+
+Prompt 节点可以引用 Preset Resource，并可在自身 `data.api.keyRefId` 与 `data.requestOptions` 中独立覆盖 API Key、model、temperature、maxTokens、thinking 和 stream。请求参数按“节点覆盖 > Workflow 默认”解析；未覆盖字段才继承 Workflow。节点明确选择的 Key 无效或被删除时必须在该节点失败，不能回退到 Workflow 或 Workspace 当前 Key。Tool 节点必须保存 `toolId` 并通过 Resource capability 获取快照。Tool Resource 是当前 Workspace 中受信任的代码，不是安全沙箱。节点模板支持 `{{in0}}`、`{{var.name}}` 和 `{{node.nodeId.path}}`；显式 node 引用也是执行依赖。循环依赖必须在创建任何 Job 前失败。
+
+节点持久化只允许 `{ id, type, position, data }`，Edge 只允许 `{ id, source, target, sourceHandle, targetHandle, type, animated }`；禁止保存 Vue Flow 的 dimensions、computedPosition、handleBounds、sourceNode、targetNode、events 等运行时字段。节点可显示动态 `in0`、`in1` 等多输入 Handle；已占用 Handle 再次连接时自动分配第一个空闲端口。
+
+AI 节点运行时将累计正文和 reasoning 写入仅内存使用的 `streamingText/streamingReasoning`，两者不得持久化。服务端 AI Job 的 `jobId` 保存到 Run；刷新后通过 Job snapshot 和事件重新绑定，跳过已经完成的节点并继续后续拓扑。恢复不要求原 Key 仍存在，因为不创建新 Job；临时直连 Job 或缺失 Job 无法恢复时，Run 标记为 `interrupted`。恢复期间必须有 HTTP snapshot 轮询兜底，不能只依赖 WebSocket/SSE 终态事件。
+
+Tool 节点有可配置超时并获得独立 AbortSignal。节点错误策略为 `stop` 或 `continue`；continue 会把错误文本作为该节点输出传给下游，最终 Run 标记为 `completed_with_errors`。终态失败节点可以“从此节点重试”，重试会清理该节点及其所有下游结果和旧 Job 绑定，但保留不受影响的上游结果。
+
+## Talk Application
+
+Talk 持久化 `{ talks, ui }`。Talk 保存 `personaId`、世界背景与 Text Resource ID、独立 `api.keyRefId`、请求参数快照、主动行为设置和 Sessions。Session 保存时钟、Context、客观状态、主观记忆、计划、对话、事件和 Runs。Persona 不复制进 Talk；每次运行开始时用 `projectPersona(persona, 'talk')` 投影并展开 Text 引用，随后释放所有 lease，同一轮五个阶段共享这份不可变 Prompt 快照。
+
+UI 统一将 Session 称为“频道”，不再称为“时段”或直接显示技术名 `Session`。一个 Talk 绑定一个 Persona；其频道表示针对该 Persona 的独立分对话，同时隔离自身的对话历史、虚拟时钟、Context、状态、记忆、计划、事件和 Runs。新建 Talk 默认创建“初始频道”，后续默认命名为“频道 2、频道 3”。历史默认名“初始时段、时段 N、初始 Session、Session N”在恢复时改为频道名称，已有其他用户自定义名称保持不变；底层字段继续使用 `sessions/activeSessionId/sessionId`。
+
+Talk 管线保留五个窄职责阶段：`state-transition`、`memory-reflection`、`plan-manager`、`contact-gate`、`conversation-writer`。用户消息优先执行 Contact Gate 和回复，只有 `maintenance: immediate` 时才在回复后维护状态、记忆和计划；维护运行按状态、记忆、计划、Contact Gate 顺序执行。主动联系频率只统计 `contactKind: proactive`，不能把用户直接请求的回复计入上限。
+
+进入 Talk 主视图，或在该视图切换到另一个 Talk/Session 时，必须自动追加 `session_opened` 事件并尝试运行一次 `trigger: entry` 的非用户维护管线。该管线推进 Session 虚拟时间、结算到期或过期计划、维护状态/记忆/计划并执行 Contact Gate。进入页面不等同于用户消息；主动行为关闭、最短联络间隔未满足或主动次数达到上限时仍可推进内部状态，但不得发送主动消息。同一 Session 已有 Run 执行时不得重复启动进入管线。
+
+Contact Gate 在没有用户新消息时也可以让 Persona 主动发起聊天，尤其是 `session_opened`、到期联系、状态新进展、符合记忆与关系的自然关心、合理的延续话题或经过足够长时间后的主动联系。主动开聊不要求重大事件，但必须有具体且符合 Persona 的 intent，不能发送空洞问候、重复消息、催促回复或虚构经历。`send` 必须提供非空 intent，`wait` 的 intent 必须为空。实际发送仍由代码强制执行主动行为开关、最短间隔和每 Session 次数上限。
+
+收到新的 `user_message` 时，Contact Gate 必须是该轮第一个 LLM Stage，不能先运行 State Transition、Memory Reflection 或 Plan Manager。直接用户互动正常情况下默认 `send`；只有用户明确不要求回复、消息确实无需回应或存在符合 Persona 的具体合理原因时才可 `wait`。用户消息触发的回复不属于主动联系，不受 `activity.enabled`、最短联络间隔或主动次数上限约束。Gate 和后续 Stage Context 必须包含 `pipelineContext.trigger/userInitiated/stageIsFirstLLMStage`，使模型能区分用户轮、进入页面轮和普通维护轮。
+
+Plan Manager 应根据事项本身的自然时点生成有长有短的计划：即时为 1 至 30 分钟，近期为 30 分钟至 6 小时，日程为 6 小时至 3 天，长期为 3 天以上、最多数周且有上下文依据的里程碑。这些边界只用于检查时间分布，不是推荐时长；模型不得机械地把计划安排在 30 分钟、6 小时或 3 天等边界值。单轮创建两个及以上计划时必须至少覆盖两个时间尺度。允许计划集中在同一小时或同一天，也允许为了形成长短搭配补充计划，但每项都必须能从 Persona、State、Memory、Conversation 或已有安排中找到具体依据，并且行动顺序、持续时间和 `scheduledAt` 符合现实逻辑。所有 `scheduledAt` 必须晚于 `sessionNow`，不得与现有 pending Plan 重复。该规则属于代码内置阶段契约，即使自定义 Prompt 没有使用 `{{instruction}}` 也必须注入，并通过浏览器端语义校验。
+
+每个阶段必须通过独立 `createTalkStageJobRequest({ stageId, context, requestOptions }, customSetting)` 创建结构化 JobRequest。Run 保存当前阶段和每个阶段的 `jobId/status/applied`。服务端无法保留函数 validator/retrier，因此浏览器收到远程结果后必须再次校验，校验失败不得写入 Session。刷新后未终态 Run 标记为 `interrupted`，不得自动重放可能已经生效的阶段。Talk 的定时检查只在页面打开时运行，不宣称后台自主执行。
+
+Talk `customSettings` 保存新建默认值和五阶段/Session Context Prompt 模板，不保存 Talk、Session、消息、状态、计划、Run 或 Job ID。每个已有 Talk 的 API 和请求参数是独立快照，不得回退 Workspace 当前 Key。
+
 侧边栏区块通过 `WorkspaceNavigation.vue` 中的 `sections` 数组注册：
 
 ```js
@@ -313,3 +472,27 @@ Section 组件 emit 事件：
 - `schema()` 只声明设置字段，不保存运行时值；运行时值由 Workspace 按 Application ID 管理
 - Application 创建 Job 后必须持久化业务对象与 `jobId` 的关联，不能只保存在内存中
 - Job 订阅必须可去重、可取消，不能因为重复调用 `revive()` 产生重复 delta 或订阅泄漏
+
+## 模式匹配约定
+
+跨 Application 的轻量模式匹配库位于 `util/match.js`。`matchTag(tag, cases, otherwise)` 用于 `node.type`、`event.type`、Provider format、Resource type 等互斥标签分发；cases 只匹配自身属性，避免 `constructor`、`__proto__` 等原型键误命中。需要穷尽处理时省略 otherwise，未知标签会抛错；需要忽略未知事件时显式传入空 fallback。
+
+`match(value, branches)` 用于值形态分支，branch 格式为 `[pattern, handler]`。内置 `P._`、`P.array`、`P.record`、`P.string`、`P.number`、`P.boolean`、`P.nullish`、`P.when(predicate)`、`P.oneOf(...)` 和 `P.shape({...})`。匹配按顺序执行，第一个命中的 handler 返回最终值；没有匹配分支时抛错。`isRecord(value)` 表示非 null、非 Array 的对象，但不承诺是 plain object。
+
+推荐用法：
+
+```js
+return matchTag(node.type, {
+  input: () => executeInput(node),
+  prompt: () => executePrompt(node),
+}, () => { throw new Error(`未知节点类型 ${node.type}`) })()
+
+return match(value, [
+  [P.string, handleString],
+  [P.array, handleArray],
+  [P.record, handleRecord],
+  [P._, item => item],
+])
+```
+
+不要为了消除所有 `if` 而滥用模式匹配。单个空值检查、短路返回、累积多个 validation issue、两个简单条件或高频流式 delta 热路径，在直接判断更清楚时应保留直接判断。不同领域的 terminal status 集合也不得合并成一个含义模糊的全局模式。

@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     proxy: {
-      '^/[^/]+/(event|ws|job|key|state|store)(/.*)?$': {
+      '^/[^/]+/(event|ws|job|key|state|store|custom-settings)(/.*)?$': {
         target: 'http://localhost:1146',
         changeOrigin: true,
         ws: true,

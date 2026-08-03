@@ -1,6 +1,8 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ChatApplication } from '../applications/chat/chat-application.js'
 import { ResourceApplication } from '../applications/resource/resource-application.js'
+import { TalkApplication } from '../applications/talk/talk-application.js'
+import { WorkflowApplication } from '../applications/workflow/workflow-application.js'
 import { BrowserWorkspaceTransport } from '../network/browser-workspace-transport.js'
 import { KeyRef } from './model/key-ref.js'
 import { Workspace } from './model/workspace.js'
@@ -26,7 +28,7 @@ export function useWorkspace({ notify = () => {} } = {}) {
     id: workspaceId,
     transport,
     temporaryKeyRef: KeyRef.fromHash(),
-    applications: [new ChatApplication(), new ResourceApplication()],
+    applications: [new ChatApplication(), new TalkApplication(), new WorkflowApplication(), new ResourceApplication()],
   }))
 
   // ---------------------------------------------------------------------------

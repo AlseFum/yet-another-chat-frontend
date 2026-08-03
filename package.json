@@ -9,13 +9,16 @@
     "tui": "node tui.js",
     "web:dev": "vite --config web/vite.config.js --host 0.0.0.0",
     "web:build": "vite build --config web/vite.config.js",
-    "web:check-theme": "node web/scripts/check-theme-contract.js"
+    "web:check-theme": "node web/scripts/check-theme-contract.js",
+    "test:applications": "node util/match.test.js && node web/src/applications/workflow/workflow.test.js && node web/src/applications/talk/talk.test.js && node web/src/applications/chat/orchestrator-job-request.test.js && node web/src/applications/resource/resource-job-request.test.js"
   },
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.5",
     "@codemirror/lang-markdown": "^6.5.0",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.1",
+    "@vue-flow/background": "^1.3.2",
+    "@vue-flow/core": "^1.48.2",
     "codemirror": "^6.0.2",
     "dompurify": "^3.2.6",
     "express": "^5.2.1",

@@ -9,6 +9,7 @@ const items = [
   { id: 'text', label: '文本', icon: 'file' },
   { id: 'preset', label: '预设', icon: 'preset' },
   { id: 'tool', label: '工具', icon: 'tool' },
+  { id: 'persona', label: 'Persona', icon: 'message' },
 ]
 const resourceCount = computed(() => items.reduce((total, item) => total + (props.application[item.id]?.length || 0), 0))
 

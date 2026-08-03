@@ -115,6 +115,12 @@ export class Workspace {
   }
 
   selectedKeyRef() { return this.keyRef }
+
+  keyRefFor(keyId) {
+    if (this.temporaryKey?.key?.id === keyId) return this.temporaryKey
+    if (this.keys.some(key => key.id === keyId)) return KeyRef.server(keyId)
+    return null
+  }
   allKeys() { return this.temporaryKey ? [...this.keys, { ...this.temporaryKey.key, temporary: true }] : this.keys }
   jobSnapshots() { return this.jobs.map(job => ({ ...job, source: this.state.jobMeta[job.id]?.source })) }
 

@@ -21,9 +21,7 @@ async function select(conversationId) {
 
 async function create() {
   try {
-    props.application.create()
-    await props.application.save()
-    emit('navigate', 'chat')
+    emit('navigate', 'chat-create')
   } catch (error) {
     emit('notify', error.message, 'danger')
   }

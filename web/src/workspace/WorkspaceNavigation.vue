@@ -1,12 +1,16 @@
 <script setup>
 import ChatSection from '../applications/chat/ChatSection.vue'
 import ResourceSection from '../applications/resource/ResourceSection.vue'
+import TalkSection from '../applications/talk/TalkSection.vue'
+import WorkflowSection from '../applications/workflow/WorkflowSection.vue'
 import AppIcon from '../components/AppIcon.js'
 
 const props = defineProps({ applications: Object, view: String })
 const emit = defineEmits(['navigate', 'notify'])
 const sections = [
   { id: 'chat', component: ChatSection },
+  { id: 'talk', component: TalkSection },
+  { id: 'workflow', component: WorkflowSection },
   { id: 'resource', component: ResourceSection },
 ]
 </script>

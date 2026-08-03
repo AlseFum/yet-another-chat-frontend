@@ -1,7 +1,11 @@
 <script setup>
 import { provide, ref } from 'vue'
 import ChatApplicationView from './applications/chat/ChatApplication.vue'
+import ChatCreateView from './applications/chat/ChatCreateView.vue'
 import ResourceView from './applications/resource/ResourceView.vue'
+import TalkApplicationView from './applications/talk/TalkApplication.vue'
+import TalkCreateView from './applications/talk/TalkCreateView.vue'
+import WorkflowApplicationView from './applications/workflow/WorkflowApplication.vue'
 import UiCombobox from './components/UiCombobox.vue'
 import UiSwitch from './components/UiSwitch.vue'
 import UiToastViewport from './components/UiToastViewport.vue'
@@ -73,7 +77,11 @@ const {
       <UiSwitch :model-value="renderMarkdown" label="渲染 Markdown" description="格式化消息中的标题、列表和代码块" @update:model-value="setRenderMarkdown" />
     </section>
     <main :key="theme.revision.value" class="workbench__content">
-      <ChatApplicationView v-if="view === 'chat'" :application="applications.get('chat')" :render-markdown="renderMarkdown" @notify="notify" />
+       <ChatApplicationView v-if="view === 'chat'" :application="applications.get('chat')" :render-markdown="renderMarkdown" @notify="notify" />
+       <ChatCreateView v-else-if="view === 'chat-create'" :application="applications.get('chat')" @created="applications.get('chat').save().then(() => navigate('chat'))" @cancel="navigate('chat')" @notify="notify" />
+       <TalkApplicationView v-else-if="view === 'talk'" :application="applications.get('talk')" @notify="notify" />
+       <TalkCreateView v-else-if="view === 'talk-create'" :application="applications.get('talk')" @created="navigate('talk')" @cancel="navigate('talk')" @notify="notify" />
+       <WorkflowApplicationView v-else-if="view === 'workflow'" :application="applications.get('workflow')" @notify="notify" />
        <ResourceView v-else-if="view === 'resource'" :application="applications.get('resource')" @notify="notify" @open-sidebar="sidebarOpen = true" />
       <ApiKeysView  v-else-if="view === 'keys'" :keys="keys" :selected-key-id="selectedKey" :create-key="createServerKey" :create-temporary-key="createTemporaryKey" :delete-key="deleteServerKey" :select-key="selectServerKey" :error="backendError" />
        <JobsView     v-else-if="view === 'jobs'" :jobs="jobs" :error="backendError" :load-detail="loadJobDetail" @abort="abortJob" @clean-terminal="cleanTerminalJobs" />

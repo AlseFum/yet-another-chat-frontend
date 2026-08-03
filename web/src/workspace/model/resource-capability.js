@@ -1,6 +1,6 @@
 import { err, ok, tryResult } from '../../../../util/result.js'
 
-const resourceTypes = new Set(['text', 'preset', 'tool'])
+const resourceTypes = new Set(['text', 'preset', 'tool', 'persona'])
 const copy = value => JSON.parse(JSON.stringify(value))
 
 function resourceError(code, message, details = {}) {
