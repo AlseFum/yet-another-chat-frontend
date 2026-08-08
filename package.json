@@ -10,7 +10,7 @@
     "web:dev": "vite --config web/vite.config.js --host 0.0.0.0",
     "web:build": "vite build --config web/vite.config.js",
     "web:check-theme": "node web/scripts/check-theme-contract.js",
-    "test:applications": "node util/match.test.js && node web/src/applications/workflow/workflow.test.js && node web/src/applications/talk/talk.test.js && node web/src/applications/chat/orchestrator-job-request.test.js && node web/src/applications/resource/resource-job-request.test.js"
+    "test:applications": "node util/match.test.js && node web/src/applications/workflow/workflow.test.js && node web/src/applications/talk/talk.test.js && node web/src/applications/chat/orchestrator-job-request.test.js && node web/src/applications/chat/persona-prompt.test.js && node web/src/applications/resource/resource-job-request.test.js"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

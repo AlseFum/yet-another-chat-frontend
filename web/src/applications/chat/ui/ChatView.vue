@@ -79,12 +79,15 @@ function participantName(participant) {
       (item) => item.personaId === participant?.personaId,
     ) || [];
   const index = samePersona.findIndex((item) => item.id === participant?.id);
-  const name =
+  const personaName =
     props.personas.find((persona) => persona.id === participant?.personaId)
       ?.name ||
     participant?.personaId ||
     participant?.id;
-  return samePersona.length > 1 ? `${name} #${index + 1}` : name;
+  return (
+    participant?.alias ||
+    (samePersona.length > 1 ? `${personaName} #${index + 1}` : personaName)
+  );
 }
 
 function speakerName(message) {

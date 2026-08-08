@@ -8,8 +8,10 @@ import {
 import {
   createParticipantLabels,
   expandChatPersona,
+  expandPersonaOutlook,
   serializeChatHistory,
   serializeParticipantRoster,
+  serializeParticipantOutlooks,
   serializePersonaPrompt,
   serializeUserMask,
 } from "./persona-prompt.js";
@@ -282,11 +284,15 @@ export class ChatApplication {
             {
               id: `participant-${Date.now()}`,
               personaId: config.personaId || firstPersona,
+              alias: "",
               api: { keyRefId: config.api.keyRefId },
             },
           ]
         : mode === "multi"
-          ? configuredParticipants
+          ? configuredParticipants.map((participant) => ({
+              ...participant,
+              alias: String(participant.alias || "").trim(),
+            }))
           : [];
     const defaults = this.workspace?.getCustomSettings(this.id) || {};
     const conversation = {
@@ -629,27 +635,49 @@ export class ChatApplication {
       const contractErrors = validateOrchestratorParticipants(personas);
       if (contractErrors.length) throw new Error(contractErrors.join("；"));
     }
+    const userMaskName =
+      current.mode === "multi"
+        ? this.personas.find(
+            (persona) => persona.id === current.userMask?.personaId,
+          )?.name
+        : null;
+    const participantNames = createParticipantLabels(
+      participants,
+      this.personas,
+      userMaskName ? new Set([userMaskName]) : new Set(),
+    );
     const personaPrompts = new Map();
     for (const { participant, persona } of personas) {
       const sections = await expandChatPersona(persona, this.workspace);
       personaPrompts.set(
         participant.id,
-        serializePersonaPrompt(persona, sections, { responder: true }),
+        serializePersonaPrompt(persona, sections, {
+          responder: true,
+          displayName: participantNames.get(participant.id) || persona.name,
+        }),
       );
     }
     const userMessage = { id: `message-${Date.now()}`, role: "user", content };
     current.messages.push(userMessage);
     await this.save();
 
-    const participantNames = createParticipantLabels(
-      participants,
-      this.personas,
-    );
+    const participantOutlooks =
+      current.mode === "multi"
+        ? await Promise.all(
+            personas.map(async ({ participant, persona }) => ({
+              participantId: participant.id,
+              name: participantNames.get(participant.id) || persona.name,
+              items: (
+                await expandPersonaOutlook(persona, this.workspace)
+              ).flatMap((section) => section.items),
+            })),
+          )
+        : [];
     let userName = "用户";
     let userMaskPrompt = "";
     if (current.mode === "multi") {
       const userMaskPersona = this.personas.find(
-        (persona) => persona.id === current.userMask.personaId,
+        (persona) => persona.id === current.userMask?.personaId,
       );
       if (!userMaskPersona)
         throw new Error("找不到 User Mask 引用的 Persona Resource");
@@ -717,7 +745,14 @@ export class ChatApplication {
             )
           : "";
       const systemPrompt = await expandTextReferences(
-        [current.systemPrompt, userMaskPrompt, rosterPrompt]
+        [
+          current.systemPrompt,
+          userMaskPrompt,
+          rosterPrompt,
+          current.mode === "multi"
+            ? serializeParticipantOutlooks(participantOutlooks, participant.id)
+            : "",
+        ]
           .filter(Boolean)
           .join("\n\n"),
         this.workspace,
@@ -913,6 +948,8 @@ export class ChatApplication {
     const sections = await expandChatPersona(actor.persona, this.workspace);
     const personaPrompt = serializePersonaPrompt(actor.persona, sections, {
       responder: true,
+      displayName:
+        participantNames.get(actor.participant.id) || actor.persona.name,
     });
     const history = serializeChatHistory(
       current.messages.filter(

@@ -3196,7 +3196,9 @@ section::before {
 }
 .chat-participant-card {
   display: grid;
-  grid-template-columns: auto minmax(150px, 1fr) minmax(150px, 1fr) auto;
+  grid-template-columns:
+    auto minmax(140px, 1fr) minmax(140px, 1fr) minmax(150px, 1fr)
+    auto;
   align-items: end;
   gap: var(--space-2);
   padding: var(--space-2);
@@ -3845,6 +3847,18 @@ section::before {
 }
 .persona-section-title {
   font-weight: 600;
+}
+.persona-outlook-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid var(--color-positive);
+  border-radius: var(--radius-xs);
+  color: var(--color-positive);
+  font: 9px var(--font-mono);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
 }
 .persona-section-heading {
   display: flex;
@@ -4780,7 +4794,8 @@ section::before {
   .chat-participant-card {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
-  .chat-participant-card label:nth-of-type(2) {
+  .chat-participant-card label:nth-of-type(2),
+  .chat-participant-card label:nth-of-type(3) {
     grid-column: 2 / -1;
   }
   .chat-policy-switch,

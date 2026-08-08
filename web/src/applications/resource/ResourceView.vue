@@ -838,6 +838,12 @@ function confirmRemove() {
                 <span class="persona-section-card__order">{{
                   String(sectionIndex + 1).padStart(2, "0")
                 }}</span>
+                ><span
+                  v-if="personaSection(sectionIndex).scope === 'outlook'"
+                  class="persona-outlook-badge"
+                  title="多人模式中的角色外观"
+                  ><AppIcon name="eye" size="11" />OUTLOOK</span
+                >
                 <div class="persona-section-heading">
                   <input
                     class="field persona-section-title"

@@ -130,6 +130,7 @@ function addParticipant() {
   participants.value.push({
     id: `participant-${Date.now()}-${participants.value.length}`,
     personaId: personas.value[0]?.id || "",
+    alias: "",
     api: { keyRefId: keyRefId.value },
   });
 }
@@ -451,6 +452,15 @@ async function create() {
                     {{ persona.name }}
                   </option>
                 </select></label
+              ><label
+                >本次别名<input
+                  v-model="participant.alias"
+                  class="field"
+                  :placeholder="
+                    personas.find(
+                      (persona) => persona.id === participant.personaId,
+                    )?.name || '例如：张三-保守派'
+                  " /></label
               ><label
                 >API Key<select
                   v-model="participant.api.keyRefId"
