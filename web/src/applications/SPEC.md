@@ -234,7 +234,7 @@ Persona 是 Chat 和 Talk 共享的结构化 Prompt Resource：
   sections: [
     ['身份', '你是一名资深系统架构师。'],
     ['[chat]交流方式', '直接回应用户。'],
-    ['[talk:private]讨论策略', '@architecture-principles'],
+    ['[talk:private]讨论策略', '@[architecture-principles]'],
     ['[talk:public]职责', '负责审查系统边界和风险。'],
   ],
 }
@@ -245,7 +245,7 @@ ResourceApplication 恢复和写入 Persona 时必须维护正式结构不变量
 每个 section 是 `[sectionName, ...items]`。无 selector 的 section 用于 Chat 和 Persona 自身的 Talk Prompt；
 `[chat]` 仅用于 Chat；`[talk:private]` 仅用于 Persona 自身的 Talk Prompt；`[talk:public]` 还可以
 向 Talk 中其他参与者展示。运行时投影时移除 selector，但保持 section 和 item 的原始顺序。Item 是普通文本或
-完整的 `@textResourceId` 引用；以 `@` 开头的 item 只能表示 Text Resource 引用，不允许混入其他内容。消费方应先
+完整的 `@[textResourceId]` 引用；以 `@` 开头的 item 只能表示 Text Resource 引用，不允许混入其他内容。消费方应先
 按目标场景过滤 section，再借用并展开保留 section 中的 Text，JobRequest 保存展开后的快照。Persona 不保存消息、
 轮次、Job、临时记忆、模型参数或 Tool 权限。
 

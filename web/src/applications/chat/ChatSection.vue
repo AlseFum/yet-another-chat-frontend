@@ -40,12 +40,16 @@ async function remove() {
 
 <template>
   <section class="side-section">
-    <header @click="open = !open"><AppIcon name="message" /><span>对话</span><UiButton v-if="application.create" variant="ghost" size="icon" title="新建" @click.stop="create"><AppIcon name="plus" size="14" /></UiButton><AppIcon class="section-chevron" name="chevron" size="12" /></header>
+    <header>
+      <button type="button" class="side-section__toggle" :aria-expanded="open" @click="open = !open"><AppIcon name="message" /><span>对话</span><AppIcon class="section-chevron" :class="{ 'section-chevron--open': open }" name="chevron" size="12" /></button>
+      <UiButton v-if="application.create" variant="ghost" size="icon" title="新建对话" @click="create"><AppIcon name="plus" size="14" /></UiButton>
+    </header>
     <div v-show="open" class="side-list">
       <div v-for="item in application.conversations" :key="item.id" class="conversation-entry" :class="{ active: active && application.ui.activeConversationId === item.id }">
         <button @click="select(item.id)"><span>{{ item.name }}</span></button>
         <UiButton class="conversation-delete" variant="ghost" size="icon" title="删除对话" @click="deleteId = item.id; deleteOpen = true"><AppIcon name="trash" size="14" /></UiButton>
       </div>
+      <p v-if="!application.conversations.length" class="side-list__empty">还没有对话</p>
     </div>
   </section>
   <UiModal v-model="deleteOpen" title="删除对话" description="此操作无法撤销。">

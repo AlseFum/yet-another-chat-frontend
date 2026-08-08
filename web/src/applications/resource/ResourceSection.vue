@@ -25,7 +25,9 @@ async function select(type) {
 
 <template>
   <section class="side-section resource-section">
-    <header @click="open = !open"><AppIcon name="file" /><span>资源</span><span class="section-count">{{ resourceCount }}</span><AppIcon class="section-chevron" name="chevron" size="12" /></header>
+    <header>
+      <button type="button" class="side-section__toggle" :aria-expanded="open" @click="open = !open"><AppIcon name="file" /><span>资源</span><span class="section-count">{{ resourceCount }}</span><AppIcon class="section-chevron" :class="{ 'section-chevron--open': open }" name="chevron" size="12" /></button>
+    </header>
     <div v-show="open" class="resource-nav">
       <button v-for="item in items" :key="item.id" :class="{ active: active && application.activeType === item.id }" @click="select(item.id)"><AppIcon :name="item.icon" />{{ item.label }}<span>{{ application[item.id].length }}</span></button>
     </div>

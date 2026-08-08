@@ -9,8 +9,8 @@ defineEmits(['update:modelValue'])
 </script>
 
 <template>
-  <div class="ui-switch" :class="{ disabled }">
+  <button type="button" class="ui-switch" :class="{ disabled }" role="switch" :aria-checked="modelValue" :disabled="disabled" @click="$emit('update:modelValue', !modelValue)">
     <span class="ui-switch__copy"><strong>{{ label }}</strong><small v-if="description">{{ description }}</small></span>
-    <button type="button" class="ui-switch__control" role="switch" :aria-label="label" :aria-checked="modelValue" :disabled="disabled" @click="$emit('update:modelValue', !modelValue)"><span /></button>
-  </div>
+    <span class="ui-switch__control" aria-hidden="true"><span /></span>
+  </button>
 </template>

@@ -13,6 +13,7 @@
     "test:applications": "node util/match.test.js && node web/src/applications/workflow/workflow.test.js && node web/src/applications/talk/talk.test.js && node web/src/applications/chat/orchestrator-job-request.test.js && node web/src/applications/resource/resource-job-request.test.js"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/lang-javascript": "^6.2.5",
     "@codemirror/lang-markdown": "^6.5.0",
     "@codemirror/state": "^6.5.2",

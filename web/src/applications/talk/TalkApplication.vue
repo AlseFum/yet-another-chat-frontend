@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from "vue";
 import AppIcon from "../../components/AppIcon.js";
+import CodeEditor from "../../components/CodeEditor.vue";
 import UiButton from "../../components/UiButton.vue";
 import { formatSessionTime } from "./talk-clock.js";
 const props = defineProps({ application: Object });
@@ -94,7 +95,11 @@ watch(
             {{ item.name }}
           </option>
         </select>
-        <small><AppIcon name="clock" size="11" />{{ formatSessionTime(session.clock) }}</small>
+        <small
+          ><AppIcon name="clock" size="11" />{{
+            formatSessionTime(session.clock)
+          }}</small
+        >
         <UiButton
           size="icon"
           variant="ghost"
@@ -141,13 +146,14 @@ watch(
           </article>
         </div>
         <form class="talk-composer" @submit.prevent="send">
-          <textarea
-            v-model="draft"
-            rows="2"
-            placeholder="发送消息，Talk Runtime 会判断回应和维护顺序"
-            @keydown.enter.exact.prevent="send"
-          ></textarea
-          ><UiButton
+          <CodeEditor
+            :model-value="draft"
+            :text-resources="application.texts"
+            compact
+            placeholder="发送消息；输入 @ 引用文本"
+            @update:model-value="draft = $event"
+            @submit="send"
+          /><UiButton
             v-if="running"
             type="button"
             variant="danger"
@@ -170,26 +176,30 @@ watch(
               <strong>客观状态</strong><small>可被旁观者验证的当前事实</small>
             </div>
           </header>
-          <textarea
-            v-model="session.state"
-            rows="10"
-            @change="application.save()"
-          ></textarea>
+          <CodeEditor
+            :model-value="session.state"
+            :text-resources="application.texts"
+            style="min-height: 220px"
+            placeholder="客观状态；输入 @ 引用文本"
+            @update:model-value="session.state = $event"
+            @blur="application.save()"
+          />
         </article>
         <article class="talk-data-card">
           <header>
             <AppIcon name="file" />
             <div>
-              <strong>频道背景</strong
-              ><small>本频道的关系、情境和边界</small>
+              <strong>频道背景</strong><small>本频道的关系、情境和边界</small>
             </div>
           </header>
-          <textarea
-            v-model="session.sessionContext"
-            rows="7"
-            @change="application.save()"
-          ></textarea
-          ><input v-model="contextGuidance" placeholder="生成说明" /><UiButton
+          <CodeEditor
+            :model-value="session.sessionContext"
+            :text-resources="application.texts"
+            style="min-height: 140px"
+            placeholder="频道背景；输入 @ 引用文本"
+            @update:model-value="session.sessionContext = $event"
+            @blur="application.save()"
+          /><input v-model="contextGuidance" placeholder="生成说明" /><UiButton
             size="sm"
             @click="
               call(
@@ -209,12 +219,13 @@ watch(
             </div>
           </header>
           <div v-for="memory in session.memory" :key="memory.id">
-            <textarea
-              v-model="memory.content"
-              rows="2"
-              @change="application.save()"
-            ></textarea
-            ><UiButton
+            <CodeEditor
+              :model-value="memory.content"
+              :text-resources="application.texts"
+              placeholder="记忆内容；输入 @ 引用文本"
+              @update:model-value="memory.content = $event"
+              @blur="application.save()"
+            /><UiButton
               variant="ghost"
               size="icon"
               @click="

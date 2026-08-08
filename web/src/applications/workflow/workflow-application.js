@@ -1,6 +1,7 @@
 import { executeWorkflow } from './workflow-engine.js'
 import { evaluateCondition, interpolateJSON, interpolateText } from './workflow-interpolation.js'
 import { createWorkflowPromptJobRequest } from './workflow-job-request.js'
+import { expandTextReferences } from '../../workspace/text-reference.js'
 import { matchTag } from '../../../../util/match.js'
 
 const copy = value => JSON.parse(JSON.stringify(value))
@@ -153,7 +154,7 @@ export class WorkflowApplication {
   async executeNode(workflow, run, { node, incoming, inputs, context, results, conditions, signal }) {
     return matchTag(node.type, {
       input: () => Object.fromEntries((node.data.variables || []).map(item => [String(item.name || '').trim(), item.value]).filter(([name]) => name)),
-      text: () => interpolateText(node.data.text, context),
+       text: async () => expandTextReferences(interpolateText(node.data.text, context), this.workspace),
       condition: () => { const value = evaluateCondition(node.data.condition, context); conditions[node.id] = value; return value },
       output: () => { const values = incoming.map(edge => results[edge.source]?.output).filter(value => value !== undefined); return values.length < 2 ? values[0] ?? '' : values },
       tool: () => this.executeToolNode({ workflow, run, node, context, signal }),
@@ -180,16 +181,17 @@ export class WorkflowApplication {
     } finally { clearTimeout(timer); signal?.removeEventListener('abort', abortTool) }
   }
 
-  executeAINode({ workflow, run, node, context, signal }) {
+   async executeAINode({ workflow, run, node, context, signal }) {
     const config = resolvePromptNodeConfig(node, workflow)
     const existingEntry = [...(run.jobs || [])].reverse().find(entry => entry.nodeId === node.id && entry.status !== 'completed')
     const existingJob = existingEntry?.jobId ? this.workspace.jobsManager.get(existingEntry.jobId) : null
     const keyRef = existingJob ? null : config.keyRefId ? this.workspace.keyRefFor(config.keyRefId) : null
     if (!existingJob && !keyRef) throw new Error(`AI 节点「${node.data.label || node.id}」没有可用 API Key`)
-    let systemPrompt = interpolateText(node.data.systemPrompt, context)
+     let systemPrompt = await expandTextReferences(interpolateText(node.data.systemPrompt, context), this.workspace)
     const preset = node.data.presetId ? this.workspace.resources.get('preset', node.data.presetId) : null
     if (preset) systemPrompt = [preset.content, systemPrompt].filter(Boolean).join('\n\n')
-    const request = createWorkflowPromptJobRequest({ prompt: interpolateText(node.data.prompt, context), systemPrompt, requestOptions: config.requestOptions }, this.workspace.getCustomSettings(this.id))
+     const prompt = await expandTextReferences(interpolateText(node.data.prompt, context), this.workspace)
+     const request = createWorkflowPromptJobRequest({ prompt, systemPrompt, requestOptions: config.requestOptions }, this.workspace.getCustomSettings(this.id))
     return this.executePromptJob(request, keyRef, workflow, run, node, signal)
   }
 

@@ -142,9 +142,9 @@
   --message-warning-background: #eadfbe;
   --message-danger-background: #efd9ce;
   --toast-background: #f8f4e9;
-  --decor-canvas-background: repeating-linear-gradient(0deg, transparent 0 31px, #a99b881f 31px 32px), linear-gradient(90deg, transparent 0 72px, #a7432d1c 72px 73px, transparent 73px);
-  --decor-topbar-background: linear-gradient(90deg, #a7432d 0 18%, #326b64 18% 31%, #29251f 31%);
-  --decor-panel-background: linear-gradient(90deg, #a7432d 0 2px, transparent 2px), linear-gradient(180deg, #a7432d 0 2px, transparent 2px);
+  --decor-canvas-background: radial-gradient(circle, #a7432d18 0 1px, transparent 1.5px), repeating-linear-gradient(0deg, transparent 0 31px, #a99b881f 31px 32px), linear-gradient(90deg, transparent 0 72px, #a7432d1c 72px 73px, transparent 73px);
+  --decor-topbar-background: linear-gradient(90deg, #a7432d 0 18%, #326b64 18% 31%, #29251f 31% 86%, #c3a15a 86%);
+  --decor-panel-background: linear-gradient(90deg, #a7432d 0 2px, transparent 2px), linear-gradient(180deg, #a7432d 0 2px, transparent 2px), radial-gradient(circle at 100% 0, #c3a15a 0 2px, transparent 2.5px);
   --decor-message-background: #f8f4e9;
 }
 
@@ -195,8 +195,8 @@
   --message-warning-background: #3d321d;
   --message-danger-background: #4b2922;
   --toast-background: #29251f;
-  --decor-canvas-background: repeating-linear-gradient(0deg, transparent 0 31px, #62594c2b 31px 32px), linear-gradient(90deg, transparent 0 72px, #df765d20 72px 73px, transparent 73px);
-  --decor-topbar-background: linear-gradient(90deg, #df765d 0 18%, #83b5a6 18% 31%, #eee7da 31%);
-  --decor-panel-background: linear-gradient(90deg, #df765d 0 2px, transparent 2px), linear-gradient(180deg, #df765d 0 2px, transparent 2px);
+  --decor-canvas-background: radial-gradient(circle, #df765d1c 0 1px, transparent 1.5px), repeating-linear-gradient(0deg, transparent 0 31px, #62594c2b 31px 32px), linear-gradient(90deg, transparent 0 72px, #df765d20 72px 73px, transparent 73px);
+  --decor-topbar-background: linear-gradient(90deg, #df765d 0 18%, #83b5a6 18% 31%, #eee7da 31% 86%, #c3a15a 86%);
+  --decor-panel-background: linear-gradient(90deg, #df765d 0 2px, transparent 2px), linear-gradient(180deg, #df765d 0 2px, transparent 2px), radial-gradient(circle at 100% 0, #c3a15a 0 2px, transparent 2.5px);
   --decor-message-background: #211e19;
 }

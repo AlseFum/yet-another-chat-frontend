@@ -15,6 +15,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue', 'change'])
 const root = ref(null)
+const trigger = ref(null)
 const searchInput = ref(null)
 const open = ref(false)
 const modalMode = ref(false)
@@ -45,9 +46,10 @@ function show() {
   nextTick(() => searchInput.value?.focus())
 }
 
-function close() {
+function close(restoreFocus = true) {
   open.value = false
   query.value = ''
+  if (restoreFocus) nextTick(() => trigger.value?.focus())
 }
 
 function select(option) {
@@ -57,7 +59,7 @@ function select(option) {
 }
 
 function handleOutside(event) {
-  if (open.value && !modalMode.value && !root.value?.contains(event.target)) close()
+  if (open.value && !modalMode.value && !root.value?.contains(event.target)) close(false)
 }
 
 function handleKeydown(event) {
@@ -89,7 +91,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="root" class="ui-combobox" :class="{ compact, open }">
-    <button type="button" class="combobox-trigger" :disabled="disabled" :aria-expanded="open" :aria-haspopup="modalMode ? 'dialog' : 'listbox'" @keydown.down.prevent="show" @click="open ? close() : show()">
+    <button ref="trigger" type="button" class="combobox-trigger" :disabled="disabled" :aria-expanded="open" :aria-haspopup="modalMode ? 'dialog' : 'listbox'" @keydown.down.prevent="show" @click="open ? close() : show()">
       <slot name="prefix" />
       <span :class="{ placeholder: !selected }">{{ selected?.label || placeholder }}</span>
       <AppIcon name="chevron" size="12" />

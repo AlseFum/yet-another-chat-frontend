@@ -6,6 +6,7 @@ import { normalizeWorkflowEdge, normalizeWorkflowNode, resolvePromptNodeConfig, 
 
 const context = createInterpolationContext({ inputs: { in0: { value: 4 } }, nodes: [{ type: 'input', data: { variables: [{ name: 'topic', value: '测试' }] } }], results: { source: { output: ['a', 'b'] } } })
 assert.equal(interpolateText('{{var.topic}}/{{in0.value}}/{{node.source.0}}', context), '测试/4/a')
+assert.equal(interpolateText('@[text-a]', context), '@[text-a]')
 assert.deepEqual(interpolateJSON('{"value":"{{in0}}"}', context), { value: { value: 4 } })
 assert.throws(() => interpolateJSON('{bad', context), /不是有效 JSON/)
 

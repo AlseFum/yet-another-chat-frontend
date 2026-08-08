@@ -41,7 +41,8 @@ export function formatPersonaSectionName(scope, title) {
 
 export function personaItemReference(item) {
   const value = String(item || '')
-  return value.startsWith('@') ? value.slice(1) : null
+  const match = /^@\[([^\]\s@]+)\]$/.exec(value)
+  return match ? match[1] : null
 }
 
 export function validatePersona(persona, textIds = null) {
@@ -63,8 +64,9 @@ export function validatePersona(persona, textIds = null) {
       if (typeof item !== 'string') issues.push({ code: 'INVALID_ITEM', sectionIndex, itemIndex, message: 'Section item 必须是字符串' })
       if (typeof item === 'string' && /\[(?:chat|talk(?::(?:private|public))?)\]/.test(item)) issues.push({ code: 'SELECTOR_IN_ITEM', sectionIndex, itemIndex, message: 'Section selector 只能位于 sectionName 开头，不能出现在内容 Item 中' })
       const referenceId = personaItemReference(item)
+      if (typeof item === 'string' && item.startsWith('@') && !referenceId) issues.push({ code: 'INVALID_REFERENCE', sectionIndex, itemIndex, message: 'Text 引用必须使用 @[text-resource-id] 格式' })
       if (referenceId === '') issues.push({ code: 'EMPTY_REFERENCE', sectionIndex, itemIndex, message: 'Text 引用不能为空' })
-      if (referenceId && (!/^[^\s@]+$/.test(referenceId))) issues.push({ code: 'INVALID_REFERENCE', sectionIndex, itemIndex, referenceId, message: `无效的 Text Resource 引用 @${referenceId}` })
+      if (referenceId && (!/^[^\s@]+$/.test(referenceId))) issues.push({ code: 'INVALID_REFERENCE', sectionIndex, itemIndex, referenceId, message: `无效的 Text Resource 引用 @[${referenceId}]` })
       if (referenceId && textIds && !textIds.has(referenceId)) issues.push({ code: 'MISSING_REFERENCE', sectionIndex, itemIndex, referenceId, message: `找不到 Text Resource ${referenceId}` })
     })
   })
