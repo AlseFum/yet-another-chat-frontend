@@ -6,7 +6,8 @@ import { JsonStore } from './json-store.js'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const port = Number(process.env.PORT || 1146)
+const port = Number(process.env.PORT || 3000)
+const host = process.env.HOST || '127.0.0.1'
 const keyId = process.env.LLM_KEY_ID || 'deepseek'
 const workspace = process.env.WORKSPACE || 'default'
 
@@ -42,4 +43,4 @@ server.once('error', error => {
   else console.error(error)
   process.exitCode = 1
 })
-server.listen(port, () => console.log(`Backend at http://localhost:${port}`))
+server.listen(port, host, () => console.log(`Backend at http://${host}:${port}`))
