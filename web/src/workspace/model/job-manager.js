@@ -23,7 +23,20 @@ export class BrowserRemoteJob {
   }
 
   apply(snapshot, event = null) {
-    if (snapshot) Object.assign(this, snapshot);
+    if (snapshot) {
+      const responseText = this.responseText;
+      const reasoning = this.reasoning;
+      const toolCalls = this.toolCalls;
+      Object.assign(this, snapshot);
+      // SSE and polling can arrive out of order. Never let an older snapshot
+      // replace output that has already been observed from a newer event.
+      if ((responseText || "").length > (snapshot.responseText || "").length)
+        this.responseText = responseText;
+      if ((reasoning || "").length > (snapshot.reasoning || "").length)
+        this.reasoning = reasoning;
+      if ((toolCalls || []).length > (snapshot.toolCalls || []).length)
+        this.toolCalls = toolCalls;
+    }
     if (event?.type === "delta" && !snapshot?.responseText)
       this.responseText += event.content || "";
     if (event?.type === "delta" && !snapshot?.reasoning)

@@ -72,6 +72,7 @@ export class ChatApplication {
     this.ui = { activeConversationId: null };
     this.jobSubscriptions = new Map();
     this.jobPollers = new Map();
+    this.saveTimers = new Map();
   }
 
   get personas() {
@@ -198,7 +199,7 @@ export class ChatApplication {
     matchTag(event.type, eventCases, () => {})(event);
   }
 
-  startJobPoller(message, job) {
+  startJobPoller(message, job, onComplete = null) {
     if (
       this.workspace.jobsManager.source(job.id) === "direct" ||
       this.jobPollers.has(job.id)
@@ -215,6 +216,7 @@ export class ChatApplication {
           Object.assign(job, snapshot);
           this.applyJobSnapshot(message, job);
           if (!message.streaming) {
+            onComplete?.(job);
             void this.save();
             return this.stopJobPoller(job.id);
           }
@@ -259,6 +261,17 @@ export class ChatApplication {
   save() {
     this.sync();
     return this.workspace.saveState();
+  }
+
+  scheduleSave(key = "chat-stream", delay = 500) {
+    clearTimeout(this.saveTimers.get(key));
+    this.saveTimers.set(
+      key,
+      setTimeout(() => {
+        this.saveTimers.delete(key);
+        void this.save();
+      }, delay),
+    );
   }
 
   select(conversationId) {
@@ -420,11 +433,19 @@ export class ChatApplication {
       .map((id) => this.workspace.resources.get("tool", id))
       .filter(Boolean)
       .map((tool) => {
-        let parameters = { type: "object", properties: {} };
+        let parameters = {
+          type: "object",
+          properties: {},
+          additionalProperties: true,
+        };
         try {
           parameters = tool.args ? JSON.parse(tool.args) : parameters;
         } catch {
-          parameters = { type: "object", properties: {} };
+          parameters = {
+            type: "object",
+            properties: {},
+            additionalProperties: true,
+          };
         }
         return {
           type: "function",
@@ -459,19 +480,45 @@ export class ChatApplication {
     return new Promise((resolve, reject) => {
       let job;
       let settled = false;
+      let pendingContent = assistant.content || "";
+      let pendingReasoning = assistant.reasoning || "";
+      let renderTimer = null;
+      const flushRender = () => {
+        if (renderTimer) clearTimeout(renderTimer);
+        renderTimer = null;
+        assistant.content = pendingContent;
+        assistant.reasoning = pendingReasoning;
+      };
+      const scheduleRender = () => {
+        if (renderTimer) return;
+        // Providers may emit one character per delta. Keep transport streaming,
+        // but render readable chunks instead of repainting for every character.
+        renderTimer = setTimeout(flushRender, 80);
+      };
       const finish = (callback, value) => {
         if (settled) return;
         settled = true;
+        flushRender();
         callback(value);
       };
       const onEvent = (event) => {
         if (event.type === "delta") {
-          assistant.content =
-            event.responseText ?? `${assistant.content}${event.content || ""}`;
-          assistant.reasoning =
-            event.responseReasoning ??
-            `${assistant.reasoning || ""}${event.reasoning || ""}`;
-          void this.save();
+          if (
+            event.responseText !== undefined &&
+            event.responseText.length >= pendingContent.length
+          )
+            pendingContent = event.responseText;
+          else if (event.responseText === undefined)
+            pendingContent += event.content || "";
+          if (
+            event.responseReasoning !== undefined &&
+            event.responseReasoning.length >= pendingReasoning.length
+          )
+            pendingReasoning = event.responseReasoning;
+          else if (event.responseReasoning === undefined)
+            pendingReasoning += event.reasoning || "";
+          scheduleRender();
+          this.scheduleSave(`raw:${assistant.conversationId}`);
         }
         if (event.type === "result")
           finish(resolve, {
@@ -497,7 +544,14 @@ export class ChatApplication {
           onCreated: async (created) => {
             job = created;
             assistant.jobId = created.id;
-            this.startJobPoller(assistant, created);
+            this.startJobPoller(assistant, created, (completed) =>
+              onEvent({
+                type: "result",
+                jobId: completed.id,
+                rawText: completed.responseText || "",
+                toolCalls: completed.toolCalls || [],
+              }),
+            );
             await this.save();
           },
         })
@@ -535,6 +589,7 @@ export class ChatApplication {
         // A tool round creates a new provider request, while the Conversation
         // keeps the assistant's persisted link for recovery and UI updates.
         assistant.content = "";
+        assistant.streaming = true;
         const request = createChatJobRequest(
           { messages: requestMessages, systemPrompt, raw: true, tools },
           { requestOptions: current.requestOptions },
@@ -566,12 +621,24 @@ export class ChatApplication {
             throw new Error(`Tool ${tool.name} 参数不是有效 JSON`);
           }
           const value = await this.executeRawTool(tool, args, current);
+          current.messages.push({
+            id: `tool-${Date.now()}-${call.id}`,
+            role: "tool",
+            toolCall: {
+              id: call.id,
+              name: tool.name,
+              arguments: args,
+            },
+            toolResult: JSON.stringify(value ?? null),
+            streaming: false,
+          });
           requestMessages.push({
             role: "tool",
             tool_call_id: call.id,
             name: tool.name,
             content: JSON.stringify(value ?? null),
           });
+          await this.save();
         }
       }
     } catch (error) {
@@ -585,6 +652,8 @@ export class ChatApplication {
   async sendMessage(content) {
     const current = this.activeConversation;
     if (!current) throw new Error("请先创建或选择对话");
+    if (current.messages?.some((message) => message.streaming))
+      throw new Error("上一轮对话仍在运行，请等待完成后再发送");
     const activeParticipant =
       current.participants?.find(
         (participant) => participant.id === current.activePersonaId,
@@ -611,7 +680,11 @@ export class ChatApplication {
       await this.save();
       const messages = await this.expandReferences(
         current.messages
-          .filter((message) => !message.streaming)
+          .filter(
+            (message) =>
+              !message.streaming &&
+              ["user", "assistant"].includes(message.role),
+          )
           .map(({ role, content: messageContent }) => ({
             role,
             content: messageContent,
@@ -1149,6 +1222,8 @@ export class ChatApplication {
   }
 
   close() {
+    for (const timer of this.saveTimers.values()) clearTimeout(timer);
+    this.saveTimers.clear();
     for (const subscription of this.jobSubscriptions.values())
       subscription.unsubscribe();
     this.jobSubscriptions.clear();
