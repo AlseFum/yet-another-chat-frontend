@@ -9,6 +9,15 @@ const emit = defineEmits(['navigate', 'notify'])
 const open = ref(true)
 const deleteId = ref(null)
 const deleteOpen = ref(false)
+const renameId = ref(null)
+const renameName = ref('')
+const renameOpen = ref(false)
+
+function beginRename(item) {
+  renameId.value = item.id
+  renameName.value = item.name
+  renameOpen.value = true
+}
 
 async function select(conversationId) {
   try {
@@ -36,6 +45,17 @@ async function remove() {
     emit('notify', error.message, 'danger')
   }
 }
+
+async function rename() {
+  try {
+    await props.application.renameConversation(renameId.value, renameName.value)
+    renameOpen.value = false
+    renameId.value = null
+    renameName.value = ''
+  } catch (error) {
+    emit('notify', error.message, 'danger')
+  }
+}
 </script>
 
 <template>
@@ -47,6 +67,7 @@ async function remove() {
     <div v-show="open" class="side-list">
       <div v-for="item in application.conversations" :key="item.id" class="conversation-entry" :class="{ active: active && application.ui.activeConversationId === item.id }">
         <button @click="select(item.id)"><span>{{ item.name }}</span></button>
+        <UiButton class="conversation-rename" variant="ghost" size="icon" title="重命名对话" @click="beginRename(item)"><AppIcon name="edit" size="14" /></UiButton>
         <UiButton class="conversation-delete" variant="ghost" size="icon" title="删除对话" @click="deleteId = item.id; deleteOpen = true"><AppIcon name="trash" size="14" /></UiButton>
       </div>
       <p v-if="!application.conversations.length" class="side-list__empty">还没有对话</p>
@@ -55,5 +76,10 @@ async function remove() {
   <UiModal v-model="deleteOpen" title="删除对话" description="此操作无法撤销。">
     <p>确认删除“{{ application.conversations.find(item => item.id === deleteId)?.name }}”？正在运行的 Job 也会请求中止。</p>
     <template #footer="{ close }"><UiButton variant="ghost" @click="close">取消</UiButton><UiButton variant="danger" @click="remove"><AppIcon name="trash" />确认删除</UiButton></template>
+  </UiModal>
+  <UiModal v-model="renameOpen" title="重命名对话" description="给这场对话起一个新名字。">
+    <label class="field-label">对话名称</label>
+    <input v-model="renameName" class="field" type="text" aria-label="对话名称" @keyup.enter="rename" />
+    <template #footer="{ close }"><UiButton variant="ghost" @click="close">取消</UiButton><UiButton variant="primary" @click="rename"><AppIcon name="edit" />保存</UiButton></template>
   </UiModal>
 </template>

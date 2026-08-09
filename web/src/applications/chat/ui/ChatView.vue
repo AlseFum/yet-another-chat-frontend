@@ -157,7 +157,14 @@ function speakerName(message) {
         <small>本次发送会让所有实例分别回复；点击 × 移除实例</small>
       </div>
     </header>
-    <div v-if="conversation && !personas.length" class="chat-persona-empty">
+    <div
+      v-if="
+        conversation &&
+        conversation.mode !== 'raw' &&
+        !personas.length
+      "
+      class="chat-persona-empty"
+    >
       <AppIcon name="info" size="14" />请先在 Resource 中创建 Persona。
     </div>
     <div ref="scrollRef" class="chat-scroll">

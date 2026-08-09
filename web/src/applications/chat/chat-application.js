@@ -40,7 +40,7 @@ export class ChatApplication {
         type: "text",
         label: "默认模型",
         description: "新建 Chat 时使用的模型名称。",
-        default: "deepseek-chat",
+        default: "deepseek-v4-flash",
       },
       temperature: {
         type: "number",
@@ -327,6 +327,17 @@ export class ChatApplication {
     return this.save();
   }
 
+  async renameConversation(conversationId, name) {
+    const conversation = this.conversations.find(
+      (item) => item.id === conversationId,
+    );
+    if (!conversation) return;
+    const nextName = String(name || "").trim();
+    if (!nextName || nextName === conversation.name) return;
+    conversation.name = nextName;
+    return this.save();
+  }
+
   async setConversationPersona(personaId) {
     const persona = this.personas.find((item) => item.id === personaId);
     if (!persona) throw new Error("找不到 Persona Resource");
@@ -460,6 +471,7 @@ export class ChatApplication {
           assistant.reasoning =
             event.responseReasoning ??
             `${assistant.reasoning || ""}${event.reasoning || ""}`;
+          void this.save();
         }
         if (event.type === "result")
           finish(resolve, {
@@ -482,10 +494,15 @@ export class ChatApplication {
             conversationId: assistant.conversationId,
           },
           onEvent,
+          onCreated: async (created) => {
+            job = created;
+            assistant.jobId = created.id;
+            this.startJobPoller(assistant, created);
+            await this.save();
+          },
         })
         .then((created) => {
           job = created;
-          assistant.jobId = created.id;
           if (created.status === "completed")
             finish(resolve, {
               job,
@@ -515,6 +532,8 @@ export class ChatApplication {
     let toolCallCount = 0;
     try {
       while (true) {
+        // A tool round creates a new provider request, while the Conversation
+        // keeps the assistant's persisted link for recovery and UI updates.
         assistant.content = "";
         const request = createChatJobRequest(
           { messages: requestMessages, systemPrompt, raw: true, tools },
@@ -1113,10 +1132,13 @@ export class ChatApplication {
         onEvent: (event) => {
           this.applyJobEvent(assistant, event);
         },
+        onCreated: async (created) => {
+          assistant.jobId = created.id;
+          this.startJobPoller(assistant, created);
+          await this.save();
+        },
       });
       assistant.jobId = job.id;
-      this.startJobPoller(assistant, job);
-      void this.save();
       return job;
     } catch (error) {
       assistant.streaming = false;

@@ -31,7 +31,7 @@ export function createChatJobRequest(
     model:
       customSetting.requestOptions?.model ||
       customSetting.model ||
-      "deepseek-chat",
+      "deepseek-v4-flash",
     temperature: customSetting.requestOptions?.temperature ?? 0.7,
     maxTokens: customSetting.requestOptions?.maxTokens ?? 4096,
     thinking: customSetting.requestOptions?.thinking ?? true,

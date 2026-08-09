@@ -11,7 +11,7 @@ function escapeAttribute(value) {
 export function formatTextResource(text, referenceId = text?.id) {
   const id = escapeAttribute(referenceId);
   const name = escapeAttribute(text?.name || referenceId);
-  return `<text-resource id="${id}" name="${name}">\n${text?.content || ""}\n</text-resource>`;
+  return `<text-resource id="${id}" name="${name}">\n### ${name}\n\n${text?.content || ""}\n</text-resource>`;
 }
 
 export function textReferenceIds(value) {

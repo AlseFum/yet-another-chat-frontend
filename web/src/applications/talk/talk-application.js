@@ -27,7 +27,7 @@ export class TalkApplication {
       model: {
         type: "text",
         label: "新 Talk 默认模型",
-        default: "deepseek-chat",
+        default: "deepseek-v4-flash",
       },
       temperature: {
         type: "number",

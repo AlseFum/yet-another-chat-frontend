@@ -110,9 +110,9 @@ const worldContext = await compileWorldContext(
 );
 assert.match(
   worldContext,
-  /<text-resource id="text-a" name="引用 A">\n引用内容\n<\/text-resource>/,
+  /<text-resource id="text-a" name="引用 A">\n### 引用 A\n\n引用内容\n<\/text-resource>/,
 );
-assert.doesNotMatch(worldContext, /^##/m);
+assert.match(worldContext, /### 引用 A/);
 
 const request = createTalkStageJobRequest(
   {

@@ -33,6 +33,10 @@ const userMaskPersonaId = ref("");
 const personaId = ref("");
 const participants = ref([]);
 const rawToolIds = ref([]);
+const presetChoice = ref("");
+const presets = computed(
+  () => props.application.workspace?.resources?.list("preset") || [],
+);
 const orchestratorPrompt = ref("");
 const policy = ref("fixed");
 const orchestratorKeyRefId = ref("");
@@ -42,7 +46,7 @@ const defaults = computed(
   () =>
     props.application.workspace?.getCustomSettings(props.application.id) || {},
 );
-const model = ref(defaults.value.model || "deepseek-chat");
+const model = ref(defaults.value.model || "deepseek-v4-flash");
 const temperature = ref(String(defaults.value.temperature ?? 0.7));
 const maxTokens = ref(String(defaults.value.maxTokens ?? 4096));
 const thinking = ref(defaults.value.thinking !== false);
@@ -146,6 +150,16 @@ function toggleRawTool(toolId) {
     : [...rawToolIds.value, toolId];
 }
 
+function applyPreset() {
+  const preset = presets.value.find((item) => item.id === presetChoice.value);
+  if (!preset) return;
+  if (preset.content) systemPrompt.value = preset.content;
+  if (preset.temperature !== undefined && preset.temperature !== "")
+    temperature.value = String(preset.temperature);
+  if (preset.maxTokens !== undefined && preset.maxTokens !== "")
+    maxTokens.value = String(preset.maxTokens);
+}
+
 async function create() {
   if (saving.value) return;
   if (orchestratorParticipantIssues.value.length) {
@@ -179,7 +193,7 @@ async function create() {
           : null,
       api: { keyRefId: keyRefId.value },
       requestOptions: {
-        model: model.value.trim() || "deepseek-chat",
+        model: model.value.trim() || "deepseek-v4-flash",
         temperature: Number(temperature.value),
         maxTokens: Number(maxTokens.value),
         thinking: thinking.value,
@@ -376,6 +390,15 @@ async function create() {
             </div>
             <span>{{ mode === "raw" ? "直接生效" : "可选" }}</span>
           </div>
+          <label v-if="mode === 'raw' && presets.length" class="chat-create-preset">
+            <span>从预设开始</span>
+            <select v-model="presetChoice" class="field" @change="applyPreset">
+              <option value="">自定义 System Prompt</option>
+              <option v-for="preset in presets" :key="preset.id" :value="preset.id">
+                {{ preset.name }}
+              </option>
+            </select>
+          </label>
           <CodeEditor
             :model-value="systemPrompt"
             :text-resources="texts"

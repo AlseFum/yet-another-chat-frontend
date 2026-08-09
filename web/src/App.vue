@@ -1,24 +1,44 @@
 <script setup>
 import { provide, ref } from "vue";
-import ChatApplicationView from "./applications/chat/ChatApplication.vue";
-import ChatCreateView from "./applications/chat/ChatCreateView.vue";
-import ResourceView from "./applications/resource/ResourceView.vue";
-import TalkApplicationView from "./applications/talk/TalkApplication.vue";
-import TalkCreateView from "./applications/talk/TalkCreateView.vue";
-import WorkflowApplicationView from "./applications/workflow/WorkflowApplication.vue";
+import { defineAsyncComponent } from "vue";
 import UiCombobox from "./components/UiCombobox.vue";
 import UiSwitch from "./components/UiSwitch.vue";
 import UiToastViewport from "./components/UiToastViewport.vue";
 import WorkbenchLayout from "./components/layout/WorkbenchLayout.vue";
 import { ThemeKey } from "./theme/contract.js";
 import { createThemeContext } from "./theme/manager.js";
-import ApiKeysView from "./views/ApiKeysView.vue";
-import JobsView from "./views/JobsView.vue";
-import CustomSettingsView from "./views/CustomSettingsView.vue";
-import TransferView from "./views/TransferView.vue";
 import WorkspaceNavigation from "./workspace/WorkspaceNavigation.vue";
 import WorkspaceToolbar from "./workspace/WorkspaceToolbar.vue";
 import { useWorkspace } from "./workspace/use-workspace.js";
+
+const ChatApplicationView = defineAsyncComponent(() =>
+  import("./applications/chat/ChatApplication.vue"),
+);
+const ChatCreateView = defineAsyncComponent(() =>
+  import("./applications/chat/ChatCreateView.vue"),
+);
+const ResourceView = defineAsyncComponent(() =>
+  import("./applications/resource/ResourceView.vue"),
+);
+const TalkApplicationView = defineAsyncComponent(() =>
+  import("./applications/talk/TalkApplication.vue"),
+);
+const TalkCreateView = defineAsyncComponent(() =>
+  import("./applications/talk/TalkCreateView.vue"),
+);
+const WorkflowApplicationView = defineAsyncComponent(() =>
+  import("./applications/workflow/WorkflowApplication.vue"),
+);
+const ApiKeysView = defineAsyncComponent(() =>
+  import("./views/ApiKeysView.vue"),
+);
+const JobsView = defineAsyncComponent(() => import("./views/JobsView.vue"));
+const CustomSettingsView = defineAsyncComponent(() =>
+  import("./views/CustomSettingsView.vue"),
+);
+const TransferView = defineAsyncComponent(() =>
+  import("./views/TransferView.vue"),
+);
 
 const theme = createThemeContext();
 provide(ThemeKey, theme);

@@ -28,7 +28,7 @@ const adapters = {
     label: "DeepSeek",
     path: "/chat/completions",
     defaultBaseUrl: "https://api.deepseek.com/v1",
-    defaultModels: ["deepseek-chat", "deepseek-reasoner"],
+    defaultModels: ["deepseek-v4-flash", "deepseek-chat", "deepseek-reasoner"],
     requiresApiKey: true,
     streamFormat: "openai",
     prepare(key, job) {

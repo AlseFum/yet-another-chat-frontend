@@ -10,7 +10,7 @@ export function createResourceJobRequest({ type, resource }, customSetting = {})
     const template = String(customSetting.generateHighlightPrompt || '').trim()
     const instruction = interpolate(template, resource)
     return new JobRequest({
-      model: 'deepseek-chat',
+      model: 'deepseek-v4-flash',
       temperature: customSetting.generateTemperature ?? 0.7,
       maxTokens: customSetting.generateMaxTokens ?? 4096,
       thinking: false,
@@ -43,7 +43,7 @@ function createPlainResourceJobRequest(type, resource, customSetting) {
   const promptKey = `generate${type[0].toUpperCase()}${type.slice(1)}Prompt`
   const template = String(customSetting[promptKey] || '').trim()
   const instruction = interpolate(template, resource)
-  return new JobRequest({ model: 'deepseek-chat', temperature: customSetting.generateTemperature ?? 0.7, maxTokens: customSetting.generateMaxTokens ?? 4096, thinking: false, stream: true, messages: [{ role: 'user', content: instruction }] })
+  return new JobRequest({ model: 'deepseek-v4-flash', temperature: customSetting.generateTemperature ?? 0.7, maxTokens: customSetting.generateMaxTokens ?? 4096, thinking: false, stream: true, messages: [{ role: 'user', content: instruction }] })
 }
 
 export function normalizeToolBody(text) {
@@ -69,7 +69,7 @@ function createToolJobRequest(resource, customSetting) {
   const template = String(customSetting.generateToolPrompt || '').trim()
   const instruction = `${interpolate(template, resource)}\n\n严格要求：只输出函数体纯文本，不要 Markdown 代码围栏，不要输出 function 声明。所有能力都必须通过 ctx 访问，例如 ctx.args、ctx.fetch、ctx.signal、ctx.workspace、ctx.job、ctx.resources、ctx.logger.log。函数体最后必须使用 return 返回可 JSON 序列化的结果，供 Workflow 下游节点消费。`
   return new JobRequest({
-    model: 'deepseek-chat',
+    model: 'deepseek-v4-flash',
     temperature: customSetting.generateTemperature ?? 0.7,
     maxTokens: customSetting.generateMaxTokens ?? 4096,
     thinking: false,
@@ -113,7 +113,7 @@ function createPersonaJobRequest(resource, customSetting) {
     return issues.length ? { ok: false, errors: issues.map(issue => issue.message) } : { ok: true, value }
   }
   return new JobRequest({
-    model: 'deepseek-chat',
+    model: 'deepseek-v4-flash',
     temperature: customSetting.generateTemperature ?? 0.7,
     maxTokens: customSetting.generateMaxTokens ?? 4096,
     thinking: false,

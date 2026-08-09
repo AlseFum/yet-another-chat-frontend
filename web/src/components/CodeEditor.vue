@@ -9,7 +9,7 @@ import {
   MatchDecorator,
   ViewPlugin,
 } from "@codemirror/view";
-import { Compartment, EditorState } from "@codemirror/state";
+import { Compartment, EditorState, Prec } from "@codemirror/state";
 import {
   acceptCompletion,
   autocompletion,
@@ -136,11 +136,28 @@ onMounted(() => {
               normalizeValue(update.state.doc.toString()),
             );
         }),
-        EditorView.domEventHandlers({
-          keydown(event, view) {
+        Prec.high(
+          EditorView.domEventHandlers({
+            keydown(event, view) {
+            if (event.key !== "Enter") return false;
             if (
-              (props.singleLine || (props.compact && !event.shiftKey)) &&
-              event.key === "Enter"
+              event.ctrlKey &&
+              !event.metaKey &&
+              !props.singleLine
+            ) {
+              event.preventDefault();
+              view.dispatch({
+                changes: {
+                  from: view.state.selection.main.from,
+                  insert: "\n",
+                },
+              });
+              return true;
+            }
+            if (
+              !event.ctrlKey &&
+              !event.metaKey &&
+              (props.singleLine || (props.compact && !event.shiftKey))
             ) {
               event.preventDefault();
               const status = completionStatus(view.state);
@@ -168,6 +185,7 @@ onMounted(() => {
             emit("blur");
           },
         }),
+        ),
       ],
     }),
   });

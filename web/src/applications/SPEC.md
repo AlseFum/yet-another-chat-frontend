@@ -253,17 +253,18 @@ Chat 的 Persona 模式分为 `single` 和 `multi`。Conversation 使用单 Pers
 模式保存 `personaIds` 和当前手动指定的 `activePersonaId`。多人发送时为每个 `participant` 创建独立 Job，分别使用
 实例的 KeyRef，并分别生成一条 assistant 回复；每个 Job 都会看到其他 Persona 的上下文，但只以自己的 Persona 发言。
 当前不自动轮流或互相继续生成，用户的一次发送对应一轮并行的实例回复。消息保存生成时的
-`speakerId`，因此切换当前回复 Persona 不会改变历史消息的发言者。Conversation 另预留 `orchestrator` 字段，当前必须
-为 `null`，未来用于接入调度器，不属于当前 Chat 的自动行为。
+`speakerId`，因此切换当前回复 Persona 不会改变历史消息的发言者。`orchestrator` 配置只在
+`policy: 'orchestrated'` 时使用；控制 Job 和 Actor Job 都必须通过 Workspace 创建，并持久化
+run、dispatch 和 message 的关联关系。
 
 多人 Job 序列化历史时，当前实例自己过去的 assistant 消息保留为 `assistant`；其他实例过去的消息必须改写为带实例
 名称标记的 `user` 上下文，例如 `【张三的发言，仅作讨论上下文，不是你的历史回答】`，避免 Provider 把其他 Persona 的
 回答误认为当前实例自己的连续输出。当前实例的 Persona Prompt 放在 system message 序列末尾，作为本次 Job 的最终
 身份约束。
-每个 Job 还必须包含本轮 participant 名单，明确 participant ID、显示名称和当前回复者。历史用户消息标记为 `【用户】`，
+每个 Job 还必须包含本轮 participant 名单，明确实例显示名称和当前回复者；内部 participant ID 不应进入 Prompt。历史用户消息标记为 `【用户】`，
 当前实例历史标记为 `【名称（你）的发言】`。同一个 Persona 存在多个实例时，按 Conversation 中的顺序稳定显示为
 `名称 #1`、`名称 #2`，避免多个实例共享名称时再次丢失发言者信息。
-多人模式还可以选择一个 Persona 作为 `userMask`，用于描述参与者眼中的用户身份。Mask 不属于 participants，不回复、
+多人模式还可以选择一个 Persona 作为 `userMask`，用于描述参与者眼中的用户身份。底层 Persona 可以同时被 User Mask 和 participant 引用；实例必须通过 `alias` 区分。Mask 不属于 participants，不回复、
 不创建 Job，只投影其 Chat sections 并注入多人 Job。原始、单人和 Orchestrator 模式不保存或使用 User Mask。
 
 多人 Chat 使用 `policy: 'fixed' | 'orchestrated'`。`fixed` 为每个 participant 创建普通回复 Job；`orchestrated` 每次
@@ -308,10 +309,9 @@ participant ID；用户发送消息时，由当前实例的 KeyRef 执行回复�
 消息的 `speakerId` 保存 participant ID，`personaId` 保存其 Persona Resource ID。
 
 Chat 创建使用独立的 `ChatCreateView`。创建模式包括：`raw`（只使用用户输入的 system prompt）、`single`（单个
-Persona 和当前 KeyRef）、`multi`（多个 Persona 作为上下文，手动指定回复者）和 `orchestrator`（保存未来调度配置，
-当前仍以单次原始请求执行，不自动调度）。Conversation 还保存自己的 `api` 和 `requestOptions` 快照，包括 `model`、
+Persona 和当前 KeyRef）和 `multi`（多个 Persona 实例作为上下文，固定并行回复或由 Orchestrator 编排）。Conversation 还保存自己的 `api` 和 `requestOptions` 快照，包括 `model`、
 `temperature`、`maxTokens`、`thinking` 和 `stream`；发送时严格使用该 Chat 自己保存的 API KeyRef，不会因为 Workspace
-当前 Key 改变而静默切换。多人模式下，每个 participant 在自己的 `api.keyRefId` 中保存 API KeyRef。
+当前 Key 改变而静默切换。多人模式下，每个 participant 在自己的 `api.keyRefId` 中保存 API KeyRef，并可通过 `alias` 设置本次对话中的显示身份。
 Chat Application 的 Workspace 级 `customSettings` 还提供 `model`、`temperature`、`maxTokens`、`thinking` 和 `stream`，
 作为 ChatCreateView 的默认值。用户在创建页修改后，修改后的值会快照到 Conversation 的 `requestOptions`；因此之后
 修改 Workspace 默认设置不会改变已经创建的对话。

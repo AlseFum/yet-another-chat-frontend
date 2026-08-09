@@ -1,8 +1,52 @@
-# LLM Application Core
+# Yet Another Agent
 
-纯 JavaScript LLM Job、Application、前端/后端 JobManager 与传输测试实现。
+一个以 Job 为核心的 LLM 工作台：把对话、Persona、工具、Workflow 和 Talk
+组织在同一个 Workspace 中，并支持浏览器直连和服务端代理两种执行方式。
 
-## API
+项目仍在快速迭代中。当前最适合用于个人部署、实验和构建 LLM 应用原型；
+不要在没有审查存储、API Key 和工具执行权限的情况下直接用于生产环境。
+
+## Features
+
+- Raw Chat：直接编写 System Prompt，并可选择受限 Tool 进行多轮调用。
+- Single Chat：一个 Persona 对应一个对话角色，使用干净的一对一消息历史。
+- Multi Chat：多个 Persona 实例并行回复；同一个 Persona 可以通过实例别名复用。
+- Persona Resource：按 section 组织身份、目标、原则、能力和交流方式，并支持 Text 引用。
+- Outlook section：多人模式下只向其他角色提供外观摘要，不暴露完整 Persona 设定。
+- Orchestrator：通过 Action Contract、输入/输出 Schema 和 Tool 权限规划一轮行动。
+- Workflow：拓扑执行节点、条件分支和 Job 结果持久化。
+- Talk：面向长期状态、记忆和计划的沉浸式交互实验。
+- Job runtime：流式输出、reasoning、验证、重试、取消、服务端持久化和刷新恢复。
+- Workspace：隔离每个 workspace 的 State、Key、Resource 和 Job。
+
+## Quick Start
+
+要求 Node.js 22 或更高版本。
+
+```sh
+npm install
+npm run start
+```
+
+打开 `http://localhost:1146/default`。首次使用时可以在 Web UI 的 API Keys 页面配置凭据。
+
+也可以通过环境变量注入一个启动 Key：
+
+```sh
+WORKSPACE=default \
+LLM_API_KEY=your-api-key \
+LLM_BASE_URL=https://api.deepseek.com/v1 \
+LLM_PROVIDER=openai-compatible \
+npm run backend
+```
+
+前端开发服务器：
+
+```sh
+npm run web:dev
+```
+
+## Core API
 
 ```js
 import { JobRequest, LLMKey, launch } from './llm/index.js'
@@ -34,22 +78,39 @@ subscription.unsubscribe()
 
 调用方决定在浏览器还是服务端调用 `launch`；核心本身不管理会话、持久化、代理路由或 API Key 存储。
 
-## Modules
+## Repository Layout
 
 ```text
-application/  纯 Application 状态，当前只保存关注的 Job ID
+application/  纯 Application 状态与通用 Job 关联模型
 tui/client/   TUI 专用的 KeyRef、JobManager、Client、HTTP/SSE/WS transport
 backend/      按 workspace 持久化 Key/State/Job，以及 JobManager、Service、HTTP/SSE/WS transport
 llm/          Provider 无关的单次 LLM Job 核心
-web/          独立的 Vue 工作台 UI，目前由内存 fixture 驱动
+web/          Vue 工作台 UI、Workspace 模型和 Applications
 tui.js        终端前端测试入口
 ```
 
 `KeyRef.temporary(key)` 表示仅前端内存中的临时 Key；`KeyRef.server(keyId)` 只传递后端 Key ID，不含 API Key。
 
-## Web UI
+## Runtime Model
 
-第一阶段 Web UI 不连接后端，也不复用 TUI 的 Client 或交互模型。它用于验证工作台布局、各 Application 页面、移动端体验以及可替换主题契约。
+业务 Application 不直接操作 Provider 或后端 Job API，而是通过以下边界运行：
+
+```text
+Application
+  -> createXXXJobRequest(input, customSettings)
+  -> Workspace.createJob({ request, keyRef, metadata, onCreated, onEvent })
+  -> JobManager
+  -> direct browser Job or server Job
+```
+
+Conversation、Workflow 和 Talk 只持久化必要的 `jobId` 与业务状态；Job 快照负责保存
+请求、输出、reasoning、尝试记录和终态。服务端 Job 可以在刷新后恢复，临时浏览器 Key
+创建的 direct Job 只在当前页面生命周期内有效。
+
+更多边界说明见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 和
+[`web/src/applications/SPEC.md`](web/src/applications/SPEC.md)。
+
+## Web UI
 
 ```sh
 npm run web:dev
@@ -57,9 +118,7 @@ npm run web:check-theme
 npm run web:build
 ```
 
-完整边界和后续阶段见 [`docs/web-replication-roadmap.md`](docs/web-replication-roadmap.md)。
-
-执行 `npm run web:build` 后，后端会自动托管 `web/dist`，可以直接访问：
+执行 `npm run web:build` 后，后端会托管 `web/dist`：
 
 生产启动使用：
 
@@ -80,6 +139,16 @@ http://localhost:5173/default
 ```
 
 Web Chat 的 Job 派发分为两种：服务端 KeyRef 将 `keyId` 和 `JobRequest` 发给后端；临时 KeyRef 则由浏览器直接调用 Provider，明文 Key 只存在当前页面内存，不进入 State、后端 Key 或 Job 快照。
+
+## Tests and Checks
+
+```sh
+npm run test:applications
+npm run web:check-theme
+npm run web:build
+```
+
+提交前至少运行上述三项。构建产生的 `web/dist`、运行时 workspace 数据和日志不应提交。
 
 ## TUI
 
@@ -138,3 +207,15 @@ job clean <jobId|@->
 TUI 在当前进程中保留最近 1000 条输入，可使用上/下方向键重复命令或 prompt。Workspace 与 Key 初始化输入会在进入主提示符前从历史中清除。
 
 TUI 主输入提示符为 `: `。
+
+## Security Notes
+
+- 不要提交 `data/`、API Key、Provider token 或真实对话记录。
+- Raw Tool 使用资源代码执行能力；只启用自己审查过的 Tool。
+- 浏览器临时 Key 不写入 Workspace State，但浏览器环境本身不应视为可信执行环境。
+- 服务端 Key 只通过 Key ID 传输给后端，API Key 不应进入 JobRequest 或 Job snapshot。
+- User Mask、Persona Prompt、Outlook 和 Action Contract 具有不同的可见范围；修改 Prompt 组装逻辑时必须保持隔离。
+
+## Contributing
+
+请先阅读 [`CONTRIBUTING.md`](CONTRIBUTING.md)。项目当前优先保证运行边界、数据隔离和 Job 恢复正确，再扩展 UI 功能。

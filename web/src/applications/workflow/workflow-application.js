@@ -47,7 +47,7 @@ function normalizeWorkflow(value, defaults = {}) {
   return {
     id: value.id || id('workflow'), name: value.name || '未命名流程',
     api: { keyRefId: value.api?.keyRefId || null },
-    requestOptions: { model: 'deepseek-chat', temperature: 0.7, maxTokens: 4096, thinking: true, stream: true, ...requestDefaults, ...value.requestOptions },
+    requestOptions: { model: 'deepseek-v4-flash', temperature: 0.7, maxTokens: 4096, thinking: true, stream: true, ...requestDefaults, ...value.requestOptions },
     nodes: Array.isArray(value.nodes) ? value.nodes.map(normalizeWorkflowNode) : [], edges: Array.isArray(value.edges) ? value.edges.map(normalizeWorkflowEdge) : [],
     lastRun: value.lastRun || null,
   }
@@ -58,7 +58,7 @@ export class WorkflowApplication {
     return {
       useInjectedPrompt: { type: 'boolean', label: '使用 Workflow 注入 Prompt', default: false },
       injectedPrompt: { type: 'textarea', label: 'Workflow 注入 Prompt', description: '追加到每个 Prompt 节点最前方。', variables: ['workflowName', 'nodeName'], default: '' },
-      model: { type: 'text', label: '新 Workflow 默认模型', default: 'deepseek-chat' },
+      model: { type: 'text', label: '新 Workflow 默认模型', default: 'deepseek-v4-flash' },
       temperature: { type: 'number', label: '新 Workflow 默认 Temperature', default: 0.7, min: 0, max: 2, step: 0.1 },
       maxTokens: { type: 'number', label: '新 Workflow 默认 Max tokens', default: 4096, min: 1, step: 1 },
       thinking: { type: 'boolean', label: '新 Workflow 默认启用思维过程', default: true },
