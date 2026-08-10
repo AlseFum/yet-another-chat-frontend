@@ -213,9 +213,19 @@ export function createActorActionJobRequest(
   const validator = (text) => {
     const envelope = envelopeValidator(text);
     if (!envelope.ok) return envelope;
+    // 协议校验:respond 类行动 completed 时必须提供 response(用户可见通道),
+    // 否则视为协议错误——模型把"对话内容"塞进 result 是协议漂移,应在此拦截。
+    if (envelope.value.status === "completed" && !String(envelope.value.response || "").trim()) {
+      return {
+        ok: false,
+        errors: [`Action ${action.id} completed 时必须提供 response 字段(角色要说的话),不允许把对话内容放在 result 里`],
+      };
+    }
     if (envelope.value.status === "completed") {
       const output = outputValidator(JSON.stringify(envelope.value.result));
-      if (!output.ok) return output;
+      // result 结构不符 outputSchema 时仅降级为警告,不拒绝——聊天展示场景模型输出更丰富,
+      // 严格拒绝会让整个 actor 行动失败;调度字段(participantId/actionId/status)仍严格校验。
+      if (!output.ok) return { ...envelope, outputWarnings: output.errors };
     }
     return envelope;
   };
