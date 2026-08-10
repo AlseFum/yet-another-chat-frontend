@@ -1112,11 +1112,7 @@ export class ChatApplication {
       assistant.jobId = job.id;
       assistant.streaming = false;
       assistant.actionResult = value;
-      assistant.content =
-        value.response ||
-        (value.result
-          ? JSON.stringify(value.result, null, 2)
-          : value.reason || "");
+      assistant.content = extractAssistantText(value);
       run.results.push(value);
       return value;
     } catch (error) {

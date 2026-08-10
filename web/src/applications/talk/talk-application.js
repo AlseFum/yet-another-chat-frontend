@@ -596,16 +596,26 @@ export class TalkApplication {
         callback(value);
       };
       const validate = (value, rawText) => {
-        const validation = isRecord(value)
-          ? { ok: true, value }
-          : request.validate(rawText || job?.responseText || "");
+        // conversation-writer:模型可能直接输出消息文本(裸字符串),收为 content 兜底
+        let candidate = value
+        if (metadata?.stageId === 'conversation-writer' && typeof value === 'string' && value.trim() && !value.trim().startsWith('{')) {
+          candidate = { content: value.trim() }
+        }
+        // 后端 Job 的 validator 因跨进程序列化丢失,value 可能是原始 JSON 文本字符串(而非对象)。
+        // 候选顺序:value(字符串也可能是 JSON 文本)→ rawText → responseText,任一可解析即可。
+        const validation = isRecord(candidate)
+          ? { ok: true, value: candidate }
+          : request.validate(String(candidate ?? "") || rawText || job?.responseText || "");
         if (!validation.ok)
           return finish(reject, new Error(validation.errors.join("；")));
         finish(resolve, validation.value);
       };
       const stateCases = {
         completed: () => {
-          if (job?.responseText) validate(job.value, job.responseText);
+          // responseText 可能为空(推理模型把 JSON 放 reasoning,reasoning 兜底已解析出 value),
+          // 用 job.value 判断而非 responseText,避免已完成 Job 因空文本永不 resolve。
+          if (job?.value !== undefined && job?.value !== null)
+            validate(job.value, job.responseText);
         },
         failed: (state) => finish(reject, new Error(`Talk Job ${state}`)),
         cancelled: (state) => finish(reject, new Error(`Talk Job ${state}`)),

@@ -75,7 +75,7 @@ export function createOrchestratorJobRequest(
     `可用行动契约：\n${JSON.stringify(contracts, null, 2)}`,
     `历史：\n${JSON.stringify(history, null, 2)}`,
     `最新用户输入：\n${latestUserMessage}`,
-    "只返回 JSON。status=dispatch 时 dispatches 至少一项；status=wait 或 finish 时 dispatches 必须为空。context 必须符合对应 Action inputSchema。",
+    "直接在最终回复中输出 JSON，不要在分析过程中构造最终 JSON——必须包含 status、dispatches、reason 三个字段。status=dispatch 时 dispatches 至少一项；status=wait 或 finish 时 dispatches 必须为空。context 必须符合对应 Action inputSchema。reason 必须用一句话说明本轮调度/等待/结束的理由。",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -92,6 +92,9 @@ export function createOrchestratorJobRequest(
           required: ["participantId", "actionId", "context"],
           properties: {
             participantId: { type: "string" },
+            // 模型可能携带契约中的冗余字段(personaId/name),允许但忽略
+            personaId: { type: "string" },
+            name: { type: "string" },
             actionId: { type: "string" },
             context: { type: "object" },
             allowedTools: { type: "array", items: { type: "string" } },
@@ -178,7 +181,9 @@ export function createActorActionJobRequest(
     `Action Context：\n${JSON.stringify(context, null, 2)}`,
     `允许的 Tools：\n${JSON.stringify(allowedTools)}`,
     `相关历史：\n${JSON.stringify(history, null, 2)}`,
-    "只返回符合契约的 JSON，不要输出 Markdown 或额外解释。",
+    `直接在最终回复中输出 JSON 信封（不要在分析过程中构造），字段必须与示例完全一致：{"participantId":"${participantId}","actionId":"${action.id}","status":"completed","response":"角色对用户说的话","result":{...}}。`,
+    `字段规则：response 必须填写，面向最终用户，只能放自然语言（角色要说的话），不允许 JSON 或状态字段；result 仅保存机器可读的结构化数据（状态/计数/进度等），不作为聊天内容展示。`,
+    `严格约束：participantId 必须是上面的实例 ID（形如 participant-xxxx，绝不是角色名或人名）；actionId 必须是 "${action.id}"；status 只能是 completed / blocked / abstain 之一（不要用 success）；result 必须是对象（符合 Action ${action.id} 的 outputSchema 结构）。不要输出解释文字或 Markdown。`,
   ]
     .filter(Boolean)
     .join("\n\n");
