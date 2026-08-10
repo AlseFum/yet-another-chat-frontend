@@ -370,6 +370,7 @@ export class TalkApplication {
       startedAt: new Date().toISOString(),
       completedAt: null,
       error: null,
+      maintenancePending: false,
     };
     session.runs.push(run);
     if (session.runs.length > 30) session.runs.shift();
@@ -396,12 +397,18 @@ export class TalkApplication {
           keyRef,
           signal: controller.signal,
         });
+      // T3:先恢复上轮未完成的维护(失败不阻塞本轮)
+      await this.recoverPendingMaintenance({
+        talk, session, run, at, personaPrompt, worldContext, keyRef, signal: controller.signal,
+      });
       let gate;
+      // [互动事务] 用户消息路径:contact-gate 失败视为互动失败
       if (userInitiated) gate = await stage("contact-gate");
+      // [维护事务] 定时/主动路径:先维护状态(各自失败 → deferred 入恢复队列)
       else {
-        this.applyState(session, await stage("state-transition"));
-        this.applyMemory(session, await stage("memory-reflection"));
-        this.applyPlans(session, await stage("plan-manager"));
+        await this.runMaintenanceStages({
+          talk, session, run, at, personaPrompt, worldContext, keyRef, signal: controller.signal, stage,
+        });
         gate = await stage("contact-gate");
       }
       const required = session.plans.some(
@@ -413,7 +420,27 @@ export class TalkApplication {
       const canProactivelySend =
         userInitiated || this.proactiveAllowed(talk, session, at);
       if ((gate.decision === "send" || required) && canProactivelySend) {
-        const written = await stage("conversation-writer");
+        // 互动降级:conversation-writer 失败 → 用 contact-gate intent 兜底,用户仍收到回复
+        let written;
+        let degraded = false;
+        try {
+          written = await stage("conversation-writer");
+        } catch (error) {
+          degraded = true;
+          written = {
+            content:
+              String(gate.intent || "").trim() ||
+              "(角色沉默了片刻,似乎不知该如何回应。)",
+          };
+          const entry = [...run.stages].reverse().find(
+            (e) => e.stageId === "conversation-writer" && e.status === "running",
+          );
+          if (entry) {
+            entry.status = "completed";
+            entry.degraded = true;
+            entry.error = error.message;
+          }
+        }
         const message = {
           id: makeId("message"),
           role: "assistant",
@@ -426,6 +453,7 @@ export class TalkApplication {
             : required
               ? "required-contact"
               : "proactive",
+          degraded: degraded || undefined,
         };
         session.conversation.push(message);
         session.lastContactAt = at;
@@ -437,17 +465,19 @@ export class TalkApplication {
           )
             plan.contactSentAt = at;
       }
+      // [维护事务] 用户路径:maintenance=immediate 时维护长期状态(各自失败 → deferred)
       if (userInitiated && gate.maintenance === "immediate") {
-        this.applyState(session, await stage("state-transition"));
-        this.applyMemory(session, await stage("memory-reflection"));
-        this.applyPlans(session, await stage("plan-manager"));
+        await this.runMaintenanceStages({
+          talk, session, run, at, personaPrompt, worldContext, keyRef, signal: controller.signal, stage,
+        });
       }
       session.nextCheckAt = validDate(gate.nextCheckAt)
         ? new Date(gate.nextCheckAt).toISOString()
         : null;
       for (const event of session.events)
         if (eventIds.has(event.id) && !event.handledAt) event.handledAt = at;
-      run.status = "completed";
+      // 维护有失败 → partial_success;否则 completed
+      run.status = run.maintenancePending ? "partial_success" : "completed";
       return run;
     } catch (error) {
       run.status = error.name === "AbortError" ? "cancelled" : "failed";
@@ -457,6 +487,76 @@ export class TalkApplication {
       run.completedAt = new Date().toISOString();
       this.running.delete(session.id);
       await this.save();
+    }
+  }
+
+  // [维护事务] 三个维护 stage,各自失败 → deferred 入恢复队列,不阻塞主流程
+  async runMaintenanceStages({ session, run, stage, ...rest }) {
+    const apply = {
+      "state-transition": (r) => this.applyState(session, r),
+      "memory-reflection": (r) => this.applyMemory(session, r),
+      "plan-manager": (r) => this.applyPlans(session, r),
+    };
+    for (const stageId of ["state-transition", "memory-reflection", "plan-manager"]) {
+      try {
+        apply[stageId](await stage(stageId));
+      } catch (error) {
+        this.deferMaintenance(run, session, stageId, error.message);
+      }
+    }
+  }
+
+  // 记录维护失败:标记 stage 为 deferred,入恢复队列
+  deferMaintenance(run, session, stageId, reason) {
+    const entry = [...run.stages].reverse().find(
+      (e) => e.stageId === stageId && e.status !== "completed",
+    );
+    if (entry) {
+      entry.status = "deferred";
+      entry.error = reason;
+    }
+    const existing = session.pendingMaintenance.find((p) => p.stage === stageId);
+    if (existing) {
+      existing.failedAt = new Date().toISOString();
+      existing.reason = reason;
+    } else {
+      session.pendingMaintenance.push({
+        stage: stageId,
+        reason,
+        failedAt: new Date().toISOString(),
+      });
+    }
+    run.maintenancePending = true;
+  }
+
+  // T3:恢复队列——重跑上轮失败的维护 stage,成功出队,失败保留(不阻塞本轮)
+  async recoverPendingMaintenance({ talk, session, run, at, personaPrompt, worldContext, keyRef, signal }) {
+    const pending = [...(session.pendingMaintenance || [])];
+    if (!pending.length) return;
+    const apply = {
+      "state-transition": (r) => this.applyState(session, r),
+      "memory-reflection": (r) => this.applyMemory(session, r),
+      "plan-manager": (r) => this.applyPlans(session, r),
+    };
+    for (const item of pending) {
+      try {
+        const result = await this.executeStage({
+          talk, session, run, stageId: item.stage, at,
+          personaPrompt, worldContext, keyRef, signal,
+        });
+        apply[item.stage](result);
+        // 标记 recovered
+        const entry = [...run.stages].reverse().find(
+          (e) => e.stageId === item.stage && e.status === "running",
+        );
+        if (entry) entry.recovered = true;
+        session.pendingMaintenance = session.pendingMaintenance.filter(
+          (p) => p !== item,
+        );
+      } catch (error) {
+        item.failedAt = new Date().toISOString();
+        item.reason = error.message;
+      }
     }
   }
 
