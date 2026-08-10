@@ -305,7 +305,14 @@ export class LLMJob {
         attemptRecord.responseText = result.rawContent;
         attemptRecord.reasoning = result.reasoning;
         this.transition("validating");
-        const validation = request.validate(result.content);
+        // 推理模型(如 deepseek-v4-flash)偶发把最终 JSON 放进 reasoning_content 而非 content:
+        // 先试 content;content 为空或校验失败且 reasoning 非空时用 reasoning 兜底,
+        // 覆盖"content 有废话但无效、reasoning 含有效 JSON"的场景,避免误判失败。
+        const contentText = String(result.content || "").trim();
+        const reasoningText = String(result.reasoning || "").trim();
+        let validation = request.validate(contentText);
+        if (!validation.ok && reasoningText)
+          validation = request.validate(reasoningText);
         if (validation.ok) {
           this.error = null;
           this.value = validation.value;

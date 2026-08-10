@@ -313,6 +313,24 @@ watch(
                 >{{ new Date(run.startedAt).toLocaleString() }} ·
                 {{ run.stages.length }} stages</small
               >
+              <p v-if="run.status === 'partial_success'" class="talk-run-note">
+                用户消息已送达;部分维护阶段失败,将在下一轮自动恢复
+              </p>
+              <p v-if="run.maintenancePending && run.status !== 'partial_success'" class="talk-run-note">
+                维护待补(maintenance pending)
+              </p>
+              <ul class="talk-run-stages">
+                <li
+                  v-for="s in run.stages"
+                  :key="s.stageId"
+                  :class="`talk-run-stage is-${s.status}`"
+                >
+                  <span class="talk-run-stage-mark">{{
+                    s.status === "completed" ? "✓" : s.status === "deferred" ? "⚠" : s.status === "running" ? "…" : "✗"
+                  }}</span>
+                  {{ s.stageId }}<em v-if="s.recovered">(recovered)</em>
+                </li>
+              </ul>
               <p v-if="run.error">{{ run.error }}</p>
             </div>
           </div>

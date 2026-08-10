@@ -18,6 +18,24 @@ import {
 import { isRecord, matchTag } from "../../../../util/match.js";
 import { expandTextReferences } from "../../workspace/text-reference.js";
 
+// Actor 输出协议 → UI 展示提取。
+// response 是唯一用户可见通道;result 仅机器数据。
+// result.reply/response/content 只是旧模型输出的迁移兼容,带 warning,不成为长期协议。
+export function extractAssistantText(value) {
+  if (value?.response) return value.response;
+  if (value?.result && typeof value.result === "object") {
+    const fallback =
+      value.result.response || value.result.reply || value.result.content;
+    if (fallback) {
+      console.warn("[actor] response missing, recovered from result");
+      return fallback;
+    }
+  }
+  return value?.result
+    ? JSON.stringify(value.result, null, 2)
+    : value?.reason || "";
+}
+
 export class ChatApplication {
   static schema() {
     return {
@@ -1112,11 +1130,7 @@ export class ChatApplication {
       assistant.jobId = job.id;
       assistant.streaming = false;
       assistant.actionResult = value;
-      assistant.content =
-        value.response ||
-        (value.result
-          ? JSON.stringify(value.result, null, 2)
-          : value.reason || "");
+      assistant.content = extractAssistantText(value);
       run.results.push(value);
       return value;
     } catch (error) {
@@ -1157,9 +1171,11 @@ export class ChatApplication {
         throw error;
       });
     const [job, result] = await Promise.all([creation, completed]);
+    // 后端 Job 的 validator 因跨进程序列化丢失,value 可能是原始 JSON 文本字符串(而非对象)。
+    // 候选顺序:value(字符串也可能是 JSON 文本)→ rawText → responseText,任一可解析即可。
     const validation = isRecord(result.value)
       ? { ok: true, value: result.value }
-      : request.validate(result.rawText || job?.responseText || "");
+      : request.validate(String(result.value ?? "") || result.rawText || job?.responseText || "");
     if (!validation.ok) throw new Error(validation.errors.join("；"));
     return { job, value: validation.value };
   }

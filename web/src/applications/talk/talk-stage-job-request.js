@@ -57,7 +57,7 @@ export function createTalkStageJobRequest(
   const customInstruction =
     instruction === stage.instruction ? "" : `自定义阶段说明：\n${instruction}`;
   const system = [
-    "你是持续性 Talk Runtime 的一个窄职责阶段。Persona 不可改写。只返回符合 Schema 的 JSON，不要 Markdown，不要泄露思维过程。",
+    "你是持续性 Talk Runtime 的一个窄职责阶段。Persona 不可改写。不要在分析过程中构造最终 JSON——最终 JSON 只允许出现在最终回复中,直接输出符合 Schema 的 JSON,不要输出解释文字或 Markdown。",
     `代码内置阶段契约：\n${stage.instruction}`,
     customInstruction,
   ]
