@@ -1,4 +1,5 @@
 # Yet Another Agent
+> 此项目与DeepseekHarness功能重复，停止开发。
 
 一个以 Job 为核心的 LLM 工作台：把对话、Persona、工具、Workflow 和 Talk
 组织在同一个 Workspace 中，并支持浏览器直连和服务端代理两种执行方式。
